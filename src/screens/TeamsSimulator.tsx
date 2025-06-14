@@ -55,7 +55,8 @@ const ParticipantVideo: React.FC<{
   participant: typeof aiParticipants[0];
   isActive?: boolean;
   isTavusMode?: boolean;
-}> = ({ participant, isActive = false, isTavusMode = false }) => {
+  isConnecting?: boolean;
+}> = ({ participant, isActive = false, isTavusMode = false, isConnecting = false }) => {
   return (
     <div className={cn(
       "relative bg-gray-900 rounded-lg overflow-hidden border-2 transition-all duration-300",
@@ -63,13 +64,26 @@ const ParticipantVideo: React.FC<{
     )}>
       <div className="aspect-video w-full h-full flex items-center justify-center">
         {isTavusMode && participant.id === 'charlie' ? (
-          <div className="w-full h-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center">
-            <div className="text-white text-center">
-              <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-2 mx-auto">
-                <span className="text-2xl">🤖</span>
+          <div className="w-full h-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center relative">
+            {isConnecting ? (
+              <div className="text-white text-center">
+                <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-2 mx-auto animate-pulse">
+                  <span className="text-2xl">🤖</span>
+                </div>
+                <p className="font-medium">Connecting...</p>
+                <div className="flex justify-center mt-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                </div>
               </div>
-              <p className="font-medium">Tavus AI</p>
-            </div>
+            ) : (
+              <div className="text-white text-center">
+                <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-2 mx-auto">
+                  <span className="text-2xl">🤖</span>
+                </div>
+                <p className="font-medium">Tavus AI</p>
+                <p className="text-xs text-white/80 mt-1">Ready to chat</p>
+              </div>
+            )}
           </div>
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center">
@@ -94,6 +108,15 @@ const ParticipantVideo: React.FC<{
           <MicOff className="w-3 h-3 text-white" />
         </div>
       </div>
+
+      {/* Active indicator for Tavus */}
+      {isTavusMode && participant.id === 'charlie' && !isConnecting && (
+        <div className="absolute top-2 left-2">
+          <div className="bg-green-500 rounded-full p-1 animate-pulse">
+            <div className="w-2 h-2 bg-white rounded-full"></div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -170,8 +193,7 @@ export const TeamsSimulator: React.FC = () => {
   
   // Post-presentation states
   const [showTavusMode, setShowTavusMode] = useState(false);
-  const [generatedQuestions, setGeneratedQuestions] = useState<string[]>([]);
-  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
+  const [isConnectingToTavus, setIsConnectingToTavus] = useState(false);
   
   // Speech recognition support and error states
   const [speechRecognitionSupported, setSpeechRecognitionSupported] = useState(true);
@@ -369,13 +391,9 @@ export const TeamsSimulator: React.FC = () => {
       return;
     }
     
-    // Transition to Tavus mode
+    // Show Tavus mode and start connecting
     setShowTavusMode(true);
-    setIsLoadingQuestions(true);
-    
-    // Generate contextual questions based on transcript
-    const questions = generateQuestionsFromTranscript(cleanTranscript);
-    setGeneratedQuestions(questions);
+    setIsConnectingToTavus(true);
     
     // Update settings with the transcript as conversational context
     const updatedSettings = {
@@ -415,7 +433,7 @@ export const TeamsSimulator: React.FC = () => {
       // Create conversation with the updated context
       const conversation = await createConversation(token);
       setConversation(conversation);
-      setIsLoadingQuestions(false);
+      setIsConnectingToTavus(false);
       
       console.log('=== CONVERSATION CREATED SUCCESSFULLY ===');
       console.log('Conversation ID:', conversation.conversation_id);
@@ -427,38 +445,9 @@ export const TeamsSimulator: React.FC = () => {
     } catch (error) {
       console.error('Error creating conversation:', error);
       setErrorMessage('Failed to create conversation with the AI. Please try again or check your internet connection.');
-      setIsLoadingQuestions(false);
+      setIsConnectingToTavus(false);
       setShowTavusMode(false);
     }
-  };
-  
-  const generateQuestionsFromTranscript = (transcript: string): string[] => {
-    // Generate questions that Charlie would ask about the presentation content
-    const wordCount = transcript.split(' ').filter(word => word.length > 0).length;
-    
-    let questions = [
-      "What inspired you to choose this topic?",
-      "Can you tell me more about your main points?",
-      "What do you hope people will remember most?"
-    ];
-    
-    if (wordCount > 50) {
-      questions = [
-        "I found your presentation really interesting! What's the key takeaway you want people to have?",
-        "Can you elaborate on some of the points you made?",
-        "What questions do you think your audience might have?"
-      ];
-    }
-    
-    if (wordCount > 150) {
-      questions = [
-        "That was a comprehensive presentation! Which part are you most passionate about?",
-        "I'd love to hear more about the details you shared - what's most important?",
-        "What aspects would you like to explore further in our discussion?"
-      ];
-    }
-    
-    return questions;
   };
   
   const toggleMute = () => {
@@ -554,6 +543,7 @@ export const TeamsSimulator: React.FC = () => {
             participant={aiParticipants[0]} 
             isActive={showTavusMode && aiParticipants[0].id === 'charlie'}
             isTavusMode={showTavusMode}
+            isConnecting={isConnectingToTavus}
           />
           <ParticipantVideo participant={aiParticipants[1]} />
           
@@ -569,53 +559,6 @@ export const TeamsSimulator: React.FC = () => {
           <div></div>
         </div>
       </div>
-      
-      {/* Tavus Questions Overlay */}
-      {showTavusMode && (
-        <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-8 max-w-2xl mx-4">
-            <div className="text-center mb-6">
-              <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center mb-4 mx-auto">
-                <span className="text-3xl">🤖</span>
-              </div>
-              <h2 className="text-2xl font-bold text-white mb-2">Presentation Complete!</h2>
-              <p className="text-gray-300">Charlie is now ready to ask you questions about your presentation</p>
-              <p className="text-sm text-gray-400 mt-2">
-                Duration: {Math.floor(presentationDuration / 60)}:{(presentationDuration % 60).toString().padStart(2, '0')} • 
-                Words: {transcript.split(' ').filter(word => word.length > 0).length}
-              </p>
-            </div>
-            
-            {isLoadingQuestions ? (
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                <p className="text-gray-300">Charlie is reviewing your presentation...</p>
-                <p className="text-sm text-gray-400 mt-2">Preparing questions about your content</p>
-              </div>
-            ) : (
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-4">Charlie wants to ask about:</h3>
-                <ul className="space-y-2 mb-6">
-                  {generatedQuestions.map((question, index) => (
-                    <li key={index} className="text-gray-300 flex items-start gap-2">
-                      <span className="text-blue-400 mt-1">•</span>
-                      {question}
-                    </li>
-                  ))}
-                </ul>
-                <div className="bg-blue-900/30 border border-blue-500/30 rounded-lg p-4 mb-4">
-                  <p className="text-sm text-blue-200">
-                    <strong>Ready for Q&A:</strong> Your presentation transcript has been shared with Charlie (Persona: pcce34deac2a, Replica: rb17cf590e15) so he can ask relevant questions about your content.
-                  </p>
-                </div>
-                <p className="text-sm text-gray-400 text-center">
-                  Starting conversation with Charlie...
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
       
       {/* Controls Bar */}
       <div className="bg-gray-800 border-t border-gray-700 px-4 py-3">
@@ -668,6 +611,19 @@ export const TeamsSimulator: React.FC = () => {
                 Latest: "{transcript.slice(-100)}..."
               </p>
             )}
+          </div>
+        )}
+
+        {/* Tavus Status */}
+        {showTavusMode && (
+          <div className="mt-2 text-center">
+            <p className="text-sm text-blue-400">
+              {isConnectingToTavus ? (
+                <>🤖 Connecting to Tavus AI...</>
+              ) : (
+                <>✅ Tavus AI ready - Click Charlie's video to start conversation</>
+              )}
+            </p>
           </div>
         )}
       </div>
