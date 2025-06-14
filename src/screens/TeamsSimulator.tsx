@@ -18,10 +18,13 @@ import {
   Hand,
   Settings,
   Grid3X3,
-  AlertTriangle
+  AlertTriangle,
+  ArrowLeft
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { DailyProvider, DailyAudio, useDaily, useLocalSessionId, useParticipantIds, useVideoTrack, useAudioTrack } from '@daily-co/daily-react';
+import Video from '@/components/Video';
 
 // Speech recognition types
 interface SpeechRecognitionEvent {
@@ -62,7 +65,47 @@ const ParticipantVideo: React.FC<{
   participant: typeof aiParticipants[0];
   isActive?: boolean;
   isTavusMode?: boolean;
-}> = ({ participant, isActive = false, isTavusMode = false }) => {
+  conversation?: any;
+}> = ({ participant, isActive = false, isTavusMode = false, conversation }) => {
+  const daily = useDaily();
+  const remoteParticipantIds = useParticipantIds({ filter: "remote" });
+  
+  // If this is Charlie and we're in Tavus mode with a conversation, show the actual video
+  if (isTavusMode && participant.id === 'charlie' && conversation?.conversation_url) {
+    // Join the Daily call if not already joined
+    useEffect(() => {
+      if (conversation?.conversation_url && daily) {
+        daily.join({
+          url: conversation.conversation_url,
+          startVideoOff: false,
+          startAudioOff: true,
+        }).then(() => {
+          daily.setLocalVideo(true);
+          daily.setLocalAudio(false);
+        });
+      }
+    }, [conversation?.conversation_url, daily]);
+
+    // Show the remote participant video if available
+    if (remoteParticipantIds.length > 0) {
+      return (
+        <div className={cn(
+          "relative bg-gray-900 rounded-lg overflow-hidden border-2 transition-all duration-300",
+          "border-blue-500 shadow-lg shadow-blue-500/30"
+        )}>
+          <Video
+            id={remoteParticipantIds[0]}
+            className="aspect-video w-full h-full"
+            tileClassName="!object-cover"
+          />
+          <div className="absolute bottom-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-sm">
+            Tavus AI (Charlie)
+          </div>
+        </div>
+      );
+    }
+  }
+
   return (
     <div className={cn(
       "relative bg-gray-900 rounded-lg overflow-hidden border-2 transition-all duration-300",
@@ -75,7 +118,7 @@ const ParticipantVideo: React.FC<{
               <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-2 mx-auto">
                 <span className="text-2xl">🤖</span>
               </div>
-              <p className="font-medium">Tavus AI</p>
+              <p className="font-medium">Connecting...</p>
             </div>
           </div>
         ) : (
@@ -111,10 +154,21 @@ const UserVideo: React.FC<{
   isMuted: boolean;
   isVideoOff: boolean;
 }> = ({ videoRef, isMuted, isVideoOff }) => {
+  const daily = useDaily();
+  const localSessionId = useLocalSessionId();
+  const localVideo = useVideoTrack(localSessionId);
+  const localAudio = useAudioTrack(localSessionId);
+
   return (
     <div className="relative bg-gray-900 rounded-lg overflow-hidden border-2 border-green-500 shadow-lg shadow-green-500/30">
       <div className="aspect-video w-full h-full">
-        {isVideoOff ? (
+        {localSessionId && daily ? (
+          <Video
+            id={localSessionId}
+            className="w-full h-full"
+            tileClassName="!object-cover"
+          />
+        ) : isVideoOff ? (
           <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center">
             <div className="text-white text-center">
               <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-2 mx-auto">
@@ -156,9 +210,9 @@ const UserVideo: React.FC<{
   );
 };
 
-export const TeamsSimulator: React.FC = () => {
+const TeamsSimulatorContent: React.FC = () => {
   const [, setScreenState] = useAtom(screenAtom);
-  const [, setConversation] = useAtom(conversationAtom);
+  const [conversation, setConversation] = useAtom(conversationAtom);
   const [settings, setSettings] = useAtom(settingsAtom);
   const [token] = useAtom(apiTokenAtom);
   
@@ -186,6 +240,14 @@ export const TeamsSimulator: React.FC = () => {
   
   // Speech recognition
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  
+  // Daily.co integration
+  const daily = useDaily();
+  const localSessionId = useLocalSessionId();
+  const localVideo = useVideoTrack(localSessionId);
+  const localAudio = useAudioTrack(localSessionId);
+  const isCameraEnabled = !localVideo.isOff;
+  const isMicEnabled = !localAudio.isOff;
   
   // Check Speech Recognition support on mount
   useEffect(() => {
@@ -427,10 +489,8 @@ export const TeamsSimulator: React.FC = () => {
       console.log('=== CONVERSATION CREATED SUCCESSFULLY ===');
       console.log('Conversation ID:', conversation.conversation_id);
       
-      // Transition to conversation after a brief delay
-      setTimeout(() => {
-        setScreenState({ currentScreen: 'conversation' });
-      }, 2000);
+      // Don't transition to conversation screen - stay in Teams mode
+      // The conversation will appear in Charlie's video box
     } catch (error) {
       console.error('Error creating conversation:', error);
       setErrorMessage('Failed to create conversation with the AI. Please try again or check your internet connection.');
@@ -469,7 +529,9 @@ export const TeamsSimulator: React.FC = () => {
   };
   
   const toggleMute = () => {
-    if (stream) {
+    if (daily) {
+      daily.setLocalAudio(!isMicEnabled);
+    } else if (stream) {
       const audioTrack = stream.getAudioTracks()[0];
       if (audioTrack) {
         audioTrack.enabled = !audioTrack.enabled;
@@ -479,7 +541,9 @@ export const TeamsSimulator: React.FC = () => {
   };
   
   const toggleVideo = () => {
-    if (stream) {
+    if (daily) {
+      daily.setLocalVideo(!isCameraEnabled);
+    } else if (stream) {
       const videoTrack = stream.getVideoTracks()[0];
       if (videoTrack) {
         videoTrack.enabled = !videoTrack.enabled;
@@ -503,6 +567,14 @@ export const TeamsSimulator: React.FC = () => {
       {/* Teams Header */}
       <div className="bg-gray-800 border-b border-gray-700 px-4 py-2 flex items-center justify-between">
         <div className="flex items-center gap-4">
+          <Button
+            onClick={() => setScreenState({ currentScreen: 'intro' })}
+            variant="ghost"
+            size="icon"
+            className="text-gray-400 hover:text-white"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
           <h1 className="text-white font-semibold">AI Presentation Coach</h1>
           {isPresenting && (
             <div className="flex items-center gap-2 text-red-400">
@@ -518,7 +590,12 @@ export const TeamsSimulator: React.FC = () => {
           <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
             <MessageSquare className="w-5 h-5" />
           </Button>
-          <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
+          <Button 
+            onClick={() => setScreenState({ currentScreen: 'settings' })}
+            variant="ghost" 
+            size="icon" 
+            className="text-gray-400 hover:text-white"
+          >
             <Settings className="w-5 h-5" />
           </Button>
         </div>
@@ -548,13 +625,14 @@ export const TeamsSimulator: React.FC = () => {
           {/* Top Row */}
           <UserVideo 
             videoRef={videoRef}
-            isMuted={isMuted}
-            isVideoOff={isVideoOff}
+            isMuted={isMuted || !isMicEnabled}
+            isVideoOff={isVideoOff || !isCameraEnabled}
           />
           <ParticipantVideo 
             participant={aiParticipants[0]} 
             isActive={showTavusMode && aiParticipants[0].id === 'charlie'}
             isTavusMode={showTavusMode}
+            conversation={conversation}
           />
           <ParticipantVideo participant={aiParticipants[1]} />
           
@@ -578,72 +656,25 @@ export const TeamsSimulator: React.FC = () => {
         </div>
       </div>
       
-      {/* Tavus Questions Overlay */}
-      {showTavusMode && (
-        <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-8 max-w-2xl mx-4">
-            <div className="text-center mb-6">
-              <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center mb-4 mx-auto">
-                <span className="text-3xl">🤖</span>
-              </div>
-              <h2 className="text-2xl font-bold text-white mb-2">Presentation Complete!</h2>
-              <p className="text-gray-300">Charlie is now ready to ask you questions about your presentation</p>
-              <p className="text-sm text-gray-400 mt-2">
-                Duration: {Math.floor(presentationDuration / 60)}:{(presentationDuration % 60).toString().padStart(2, '0')} • 
-                Words: {transcript.split(' ').filter(word => word.length > 0).length}
-              </p>
-            </div>
-            
-            {isLoadingQuestions ? (
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                <p className="text-gray-300">Charlie is reviewing your presentation...</p>
-                <p className="text-sm text-gray-400 mt-2">Preparing questions about your content</p>
-              </div>
-            ) : (
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-4">Charlie wants to ask about:</h3>
-                <ul className="space-y-2 mb-6">
-                  {generatedQuestions.map((question, index) => (
-                    <li key={index} className="text-gray-300 flex items-start gap-2">
-                      <span className="text-blue-400 mt-1">•</span>
-                      {question}
-                    </li>
-                  ))}
-                </ul>
-                <div className="bg-blue-900/30 border border-blue-500/30 rounded-lg p-4 mb-4">
-                  <p className="text-sm text-blue-200">
-                    <strong>Ready for Q&A:</strong> Your presentation transcript has been shared with Charlie (Persona: pcce34deac2a, Replica: rb17cf590e15) so he can ask relevant questions about your content.
-                  </p>
-                </div>
-                <p className="text-sm text-gray-400 text-center">
-                  Starting conversation with Charlie...
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-      
       {/* Controls Bar */}
       <div className="bg-gray-800 border-t border-gray-700 px-4 py-3">
         <div className="flex items-center justify-center gap-4">
           <Button
             onClick={toggleMute}
-            variant={isMuted ? "destructive" : "secondary"}
+            variant={isMuted || !isMicEnabled ? "destructive" : "secondary"}
             size="icon"
             className="rounded-full"
           >
-            {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+            {isMuted || !isMicEnabled ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
           </Button>
           
           <Button
             onClick={toggleVideo}
-            variant={isVideoOff ? "destructive" : "secondary"}
+            variant={isVideoOff || !isCameraEnabled ? "destructive" : "secondary"}
             size="icon"
             className="rounded-full"
           >
-            {isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+            {isVideoOff || !isCameraEnabled ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
           </Button>
           
           <Button
@@ -734,6 +765,16 @@ export const TeamsSimulator: React.FC = () => {
           </div>
         )}
       </div>
+      
+      <DailyAudio />
     </div>
+  );
+};
+
+export const TeamsSimulator: React.FC = () => {
+  return (
+    <DailyProvider>
+      <TeamsSimulatorContent />
+    </DailyProvider>
   );
 };
