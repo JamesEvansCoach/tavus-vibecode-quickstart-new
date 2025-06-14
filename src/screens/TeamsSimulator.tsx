@@ -158,7 +158,7 @@ const UserVideo: React.FC<{
 export const TeamsSimulator: React.FC = () => {
   const [, setScreenState] = useAtom(screenAtom);
   const [, setConversation] = useAtom(conversationAtom);
-  const [settings] = useAtom(settingsAtom);
+  const [settings, setSettings] = useAtom(settingsAtom);
   const [token] = useAtom(apiTokenAtom);
   
   // Media states
@@ -292,15 +292,33 @@ export const TeamsSimulator: React.FC = () => {
     const questions = generateQuestionsFromTranscript(transcript);
     setGeneratedQuestions(questions);
     
-    // Update settings with presentation context
-    const contextualSettings = {
+    // Create comprehensive conversational context with the presentation transcript
+    const presentationContext = createPresentationContext(transcript, presentationDuration);
+    
+    // Update settings with the presentation transcript as conversational context
+    const updatedSettings = {
       ...settings,
-      context: `The user just finished a presentation. Here's the transcript of their presentation: "${transcript}". Please ask relevant follow-up questions about their presentation and provide helpful feedback or insights.`,
-      greeting: "Great presentation! I'd love to discuss some aspects of what you shared. Let me ask you a few questions."
+      context: presentationContext,
+      greeting: "Thank you for that presentation! I've reviewed your content and I'm excited to discuss it with you. I have some thoughtful questions and feedback to share.",
+      persona: "pcce34deac2a" // Ensure we're using the correct Tavus replica
     };
+    
+    // Update the settings atom with the new context
+    setSettings(updatedSettings);
+    
+    // Also save to localStorage for persistence
+    localStorage.setItem('tavus-settings', JSON.stringify(updatedSettings));
+    
+    console.log('Presentation transcript being sent to Tavus:', {
+      transcriptLength: transcript.length,
+      wordCount: transcript.split(' ').filter(word => word.length > 0).length,
+      duration: presentationDuration,
+      context: presentationContext
+    });
     
     try {
       if (token) {
+        // Create conversation with the updated context
         const conversation = await createConversation(token);
         setConversation(conversation);
         setIsLoadingQuestions(false);
@@ -316,15 +334,61 @@ export const TeamsSimulator: React.FC = () => {
     }
   };
   
+  const createPresentationContext = (transcript: string, duration: number): string => {
+    const wordCount = transcript.split(' ').filter(word => word.length > 0).length;
+    const minutes = Math.floor(duration / 60);
+    const seconds = duration % 60;
+    
+    return `PRESENTATION ANALYSIS CONTEXT:
+
+The user just completed a ${minutes}:${seconds.toString().padStart(2, '0')} minute presentation. Here is the complete transcript of their presentation:
+
+"${transcript.trim()}"
+
+PRESENTATION METRICS:
+- Duration: ${minutes} minutes and ${seconds} seconds
+- Word count: ${wordCount} words
+- Speaking pace: ${wordCount > 0 ? Math.round((wordCount / duration) * 60) : 0} words per minute
+
+INSTRUCTIONS FOR INTERACTION:
+1. You are an AI presentation coach providing personalized feedback
+2. Ask thoughtful questions about their content, delivery, and objectives
+3. Provide constructive feedback on their presentation structure and key points
+4. Help them identify strengths and areas for improvement
+5. Be encouraging while offering specific, actionable advice
+6. Reference specific parts of their transcript when giving feedback
+7. Ask about their target audience and presentation goals
+8. Suggest ways to enhance their message clarity and impact
+
+Please engage in a natural conversation about their presentation, starting with acknowledging what they shared and asking relevant follow-up questions.`;
+  };
+  
   const generateQuestionsFromTranscript = (transcript: string): string[] => {
-    // Simple question generation based on transcript content
-    const questions = [
-      "What was the main challenge you were trying to address in your presentation?",
-      "How do you plan to measure the success of the solution you proposed?",
-      "What questions or concerns do you think your audience might have?"
+    // Enhanced question generation based on transcript content and length
+    const wordCount = transcript.split(' ').filter(word => word.length > 0).length;
+    
+    let questions = [
+      "What was the main message you wanted your audience to take away?",
+      "How do you think your presentation went overall?",
+      "What aspects of your delivery felt most natural to you?"
     ];
     
-    // In a real implementation, you could use AI to generate more contextual questions
+    if (wordCount > 50) {
+      questions = [
+        "I noticed some interesting points in your presentation. What was your primary objective?",
+        "How confident did you feel while presenting this material?",
+        "What questions do you anticipate your audience might have?"
+      ];
+    }
+    
+    if (wordCount > 150) {
+      questions = [
+        "Your presentation covered several key areas. Which section do you feel was strongest?",
+        "What challenges did you face while preparing this presentation?",
+        "How would you adapt this presentation for different audiences?"
+      ];
+    }
+    
     return questions;
   };
   
@@ -359,7 +423,7 @@ export const TeamsSimulator: React.FC = () => {
       {/* Teams Header */}
       <div className="bg-gray-800 border-b border-gray-700 px-4 py-2 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <h1 className="text-white font-semibold">Presentation Meeting</h1>
+          <h1 className="text-white font-semibold">AI Presentation Coach</h1>
           {isPresenting && (
             <div className="flex items-center gap-2 text-red-400">
               <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
@@ -425,17 +489,21 @@ export const TeamsSimulator: React.FC = () => {
                 <span className="text-3xl">🤖</span>
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">Presentation Complete!</h2>
-              <p className="text-gray-300">Tavus AI is ready to discuss your presentation</p>
+              <p className="text-gray-300">Tavus AI has analyzed your {Math.floor(presentationDuration / 60)}:{(presentationDuration % 60).toString().padStart(2, '0')} presentation</p>
+              <p className="text-sm text-gray-400 mt-2">
+                Transcribed {transcript.split(' ').filter(word => word.length > 0).length} words • Ready for feedback session
+              </p>
             </div>
             
             {isLoadingQuestions ? (
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                <p className="text-gray-300">Analyzing your presentation...</p>
+                <p className="text-gray-300">Processing your presentation transcript...</p>
+                <p className="text-sm text-gray-400 mt-2">Preparing personalized feedback and questions</p>
               </div>
             ) : (
               <div>
-                <h3 className="text-lg font-semibold text-white mb-4">Questions I'd like to explore:</h3>
+                <h3 className="text-lg font-semibold text-white mb-4">Ready to discuss:</h3>
                 <ul className="space-y-2 mb-6">
                   {generatedQuestions.map((question, index) => (
                     <li key={index} className="text-gray-300 flex items-start gap-2">
@@ -444,8 +512,13 @@ export const TeamsSimulator: React.FC = () => {
                     </li>
                   ))}
                 </ul>
+                <div className="bg-blue-900/30 border border-blue-500/30 rounded-lg p-4 mb-4">
+                  <p className="text-sm text-blue-200">
+                    <strong>Context Provided:</strong> Your complete presentation transcript has been shared with Tavus AI for personalized coaching and feedback.
+                  </p>
+                </div>
                 <p className="text-sm text-gray-400 text-center">
-                  Starting conversation in a moment...
+                  Starting your coaching session...
                 </p>
               </div>
             )}
@@ -501,16 +574,16 @@ export const TeamsSimulator: React.FC = () => {
           {!isPresenting ? (
             <Button
               onClick={startPresentation}
-              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-full"
+              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-full font-semibold"
             >
-              Start Presentation
+              🎤 Start Presentation
             </Button>
           ) : (
             <Button
               onClick={endPresentation}
-              className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-full font-semibold"
+              className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-full font-semibold animate-pulse"
             >
-              End Presentation
+              ⏹️ End Presentation & Get Feedback
             </Button>
           )}
           
@@ -527,8 +600,13 @@ export const TeamsSimulator: React.FC = () => {
         {isRecording && (
           <div className="mt-2 text-center">
             <p className="text-sm text-gray-400">
-              🎤 Speech-to-text active • {transcript.split(' ').length} words transcribed
+              🎤 Speech-to-text active • {transcript.split(' ').filter(word => word.length > 0).length} words transcribed
             </p>
+            {transcript.length > 0 && (
+              <p className="text-xs text-gray-500 mt-1 max-w-2xl mx-auto truncate">
+                Latest: "{transcript.slice(-100)}..."
+              </p>
+            )}
           </div>
         )}
       </div>
