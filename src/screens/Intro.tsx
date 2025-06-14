@@ -35,7 +35,7 @@ export const Intro: React.FC = () => {
           }}>
           <img src="/public/images/vector.svg" alt="Logo" className="mt-2 mb-1" style={{ width: '40px', height: 'auto' }} />
 
-          <h1 className="text-xl font-bold text-white mb-1" style={{ fontFamily: 'Source Code Pro, monospace' }}>AI Presentation Coach</h1>
+          <h1 className="text-xl font-bold text-white mb-1" style={{ fontFamily: 'Source Code Pro, monospace' }}>Communicado</h1>
           <p className="text-sm text-gray-300 text-center mb-4 max-w-sm">
             Practice your presentations with AI participants, then get personalized feedback from Tavus AI
           </p>
