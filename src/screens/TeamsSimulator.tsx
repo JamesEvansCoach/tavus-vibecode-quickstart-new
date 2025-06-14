@@ -536,7 +536,7 @@ export const TeamsSimulator: React.FC = () => {
               className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold animate-pulse flex items-center gap-2"
             >
               <Square className="w-4 h-4" />
-              End & Chat with Charlie
+              Finish Presentation
             </Button>
           )}
           
