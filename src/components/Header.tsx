@@ -18,12 +18,7 @@ export const Header = memo(() => {
   };
 
   return (
-    <header className="flex w-full items-start justify-between" style={{ fontFamily: 'Inter, sans-serif' }}>
-      <img
-        src="/images/logo.svg"
-        alt="Tavus"
-        className="relative h-6 sm:h-10"
-      />
+    <header className="flex w-full items-start justify-end" style={{ fontFamily: 'Inter, sans-serif' }}>
       <div className="relative">
         {settingsSaved && (
           <div className="absolute -top-2 -right-2 z-20 rounded-full bg-green-500 p-1 animate-fade-in">
