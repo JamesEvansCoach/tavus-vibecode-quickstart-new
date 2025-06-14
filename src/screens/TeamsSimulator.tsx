@@ -56,12 +56,17 @@ const ParticipantVideo: React.FC<{
   isActive?: boolean;
   isTavusMode?: boolean;
   isConnecting?: boolean;
-}> = ({ participant, isActive = false, isTavusMode = false, isConnecting = false }) => {
+  onTavusClick?: () => void;
+}> = ({ participant, isActive = false, isTavusMode = false, isConnecting = false, onTavusClick }) => {
   return (
-    <div className={cn(
-      "relative bg-gray-900 rounded-lg overflow-hidden border-2 transition-all duration-300",
-      isActive ? "border-blue-500 shadow-lg shadow-blue-500/30" : "border-gray-700"
-    )}>
+    <div 
+      className={cn(
+        "relative bg-gray-900 rounded-lg overflow-hidden border-2 transition-all duration-300",
+        isActive ? "border-blue-500 shadow-lg shadow-blue-500/30" : "border-gray-700",
+        isTavusMode && participant.id === 'charlie' ? "cursor-pointer hover:border-blue-400" : ""
+      )}
+      onClick={isTavusMode && participant.id === 'charlie' ? onTavusClick : undefined}
+    >
       <div className="aspect-video w-full h-full flex items-center justify-center">
         {isTavusMode && participant.id === 'charlie' ? (
           <div className="w-full h-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center relative">
@@ -81,7 +86,7 @@ const ParticipantVideo: React.FC<{
                   <span className="text-2xl">🤖</span>
                 </div>
                 <p className="font-medium">Tavus AI</p>
-                <p className="text-xs text-white/80 mt-1">Ready to chat</p>
+                <p className="text-xs text-white/80 mt-1">Click to chat</p>
               </div>
             )}
           </div>
@@ -194,6 +199,7 @@ export const TeamsSimulator: React.FC = () => {
   // Post-presentation states
   const [showTavusMode, setShowTavusMode] = useState(false);
   const [isConnectingToTavus, setIsConnectingToTavus] = useState(false);
+  const [tavusReady, setTavusReady] = useState(false);
   
   // Speech recognition support and error states
   const [speechRecognitionSupported, setSpeechRecognitionSupported] = useState(true);
@@ -434,19 +440,22 @@ export const TeamsSimulator: React.FC = () => {
       const conversation = await createConversation(token);
       setConversation(conversation);
       setIsConnectingToTavus(false);
+      setTavusReady(true);
       
       console.log('=== CONVERSATION CREATED SUCCESSFULLY ===');
       console.log('Conversation ID:', conversation.conversation_id);
       
-      // Transition to conversation after a brief delay
-      setTimeout(() => {
-        setScreenState({ currentScreen: 'conversation' });
-      }, 2000);
     } catch (error) {
       console.error('Error creating conversation:', error);
       setErrorMessage('Failed to create conversation with the AI. Please try again or check your internet connection.');
       setIsConnectingToTavus(false);
       setShowTavusMode(false);
+    }
+  };
+  
+  const handleTavusClick = () => {
+    if (tavusReady) {
+      setScreenState({ currentScreen: 'conversation' });
     }
   };
   
@@ -544,6 +553,7 @@ export const TeamsSimulator: React.FC = () => {
             isActive={showTavusMode && aiParticipants[0].id === 'charlie'}
             isTavusMode={showTavusMode}
             isConnecting={isConnectingToTavus}
+            onTavusClick={handleTavusClick}
           />
           <ParticipantVideo participant={aiParticipants[1]} />
           
@@ -620,8 +630,10 @@ export const TeamsSimulator: React.FC = () => {
             <p className="text-sm text-blue-400">
               {isConnectingToTavus ? (
                 <>🤖 Connecting to Tavus AI...</>
-              ) : (
+              ) : tavusReady ? (
                 <>✅ Tavus AI ready - Click Charlie's video to start conversation</>
+              ) : (
+                <>🤖 Tavus AI available</>
               )}
             </p>
           </div>
