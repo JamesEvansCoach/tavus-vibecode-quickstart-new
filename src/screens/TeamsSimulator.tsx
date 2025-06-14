@@ -292,15 +292,12 @@ export const TeamsSimulator: React.FC = () => {
     const questions = generateQuestionsFromTranscript(transcript);
     setGeneratedQuestions(questions);
     
-    // Create comprehensive conversational context with the presentation transcript
-    const presentationContext = createPresentationContext(transcript, presentationDuration);
-    
-    // Update settings with the presentation transcript as conversational context
+    // Update settings with ONLY the presentation transcript as conversational context
     const updatedSettings = {
       ...settings,
-      context: presentationContext,
-      greeting: "Thank you for that presentation! I've reviewed your content and I'm excited to discuss it with you. I have some thoughtful questions and feedback to share.",
-      persona: "pcce34deac2a" // Ensure we're using the correct Tavus replica
+      context: transcript.trim(), // Only the transcript, no additional formatting
+      greeting: "Hi! I just listened to your presentation and I'm curious to learn more about it. I have some questions I'd love to ask you about what you shared.",
+      persona: "rb17cf590e15" // Use the specified replica ID
     };
     
     // Update the settings atom with the new context
@@ -313,7 +310,8 @@ export const TeamsSimulator: React.FC = () => {
       transcriptLength: transcript.length,
       wordCount: transcript.split(' ').filter(word => word.length > 0).length,
       duration: presentationDuration,
-      context: presentationContext
+      replicaId: 'rb17cf590e15',
+      context: transcript.trim()
     });
     
     try {
@@ -334,58 +332,29 @@ export const TeamsSimulator: React.FC = () => {
     }
   };
   
-  const createPresentationContext = (transcript: string, duration: number): string => {
-    const wordCount = transcript.split(' ').filter(word => word.length > 0).length;
-    const minutes = Math.floor(duration / 60);
-    const seconds = duration % 60;
-    
-    return `PRESENTATION ANALYSIS CONTEXT:
-
-The user just completed a ${minutes}:${seconds.toString().padStart(2, '0')} minute presentation. Here is the complete transcript of their presentation:
-
-"${transcript.trim()}"
-
-PRESENTATION METRICS:
-- Duration: ${minutes} minutes and ${seconds} seconds
-- Word count: ${wordCount} words
-- Speaking pace: ${wordCount > 0 ? Math.round((wordCount / duration) * 60) : 0} words per minute
-
-INSTRUCTIONS FOR INTERACTION:
-1. You are an AI presentation coach providing personalized feedback
-2. Ask thoughtful questions about their content, delivery, and objectives
-3. Provide constructive feedback on their presentation structure and key points
-4. Help them identify strengths and areas for improvement
-5. Be encouraging while offering specific, actionable advice
-6. Reference specific parts of their transcript when giving feedback
-7. Ask about their target audience and presentation goals
-8. Suggest ways to enhance their message clarity and impact
-
-Please engage in a natural conversation about their presentation, starting with acknowledging what they shared and asking relevant follow-up questions.`;
-  };
-  
   const generateQuestionsFromTranscript = (transcript: string): string[] => {
-    // Enhanced question generation based on transcript content and length
+    // Generate questions that Charlie would ask about the presentation content
     const wordCount = transcript.split(' ').filter(word => word.length > 0).length;
     
     let questions = [
-      "What was the main message you wanted your audience to take away?",
-      "How do you think your presentation went overall?",
-      "What aspects of your delivery felt most natural to you?"
+      "What inspired you to choose this topic?",
+      "Can you tell me more about your main points?",
+      "What do you hope people will remember most?"
     ];
     
     if (wordCount > 50) {
       questions = [
-        "I noticed some interesting points in your presentation. What was your primary objective?",
-        "How confident did you feel while presenting this material?",
-        "What questions do you anticipate your audience might have?"
+        "I found your presentation really interesting! What's the key takeaway you want people to have?",
+        "Can you elaborate on some of the points you made?",
+        "What questions do you think your audience might have?"
       ];
     }
     
     if (wordCount > 150) {
       questions = [
-        "Your presentation covered several key areas. Which section do you feel was strongest?",
-        "What challenges did you face while preparing this presentation?",
-        "How would you adapt this presentation for different audiences?"
+        "That was a comprehensive presentation! Which part are you most passionate about?",
+        "I'd love to hear more about the details you shared - what's most important?",
+        "What aspects would you like to explore further in our discussion?"
       ];
     }
     
@@ -489,21 +458,22 @@ Please engage in a natural conversation about their presentation, starting with 
                 <span className="text-3xl">🤖</span>
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">Presentation Complete!</h2>
-              <p className="text-gray-300">Tavus AI has analyzed your {Math.floor(presentationDuration / 60)}:{(presentationDuration % 60).toString().padStart(2, '0')} presentation</p>
+              <p className="text-gray-300">Charlie is now ready to ask you questions about your presentation</p>
               <p className="text-sm text-gray-400 mt-2">
-                Transcribed {transcript.split(' ').filter(word => word.length > 0).length} words • Ready for feedback session
+                Duration: {Math.floor(presentationDuration / 60)}:{(presentationDuration % 60).toString().padStart(2, '0')} • 
+                Words: {transcript.split(' ').filter(word => word.length > 0).length}
               </p>
             </div>
             
             {isLoadingQuestions ? (
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                <p className="text-gray-300">Processing your presentation transcript...</p>
-                <p className="text-sm text-gray-400 mt-2">Preparing personalized feedback and questions</p>
+                <p className="text-gray-300">Charlie is reviewing your presentation...</p>
+                <p className="text-sm text-gray-400 mt-2">Preparing questions about your content</p>
               </div>
             ) : (
               <div>
-                <h3 className="text-lg font-semibold text-white mb-4">Ready to discuss:</h3>
+                <h3 className="text-lg font-semibold text-white mb-4">Charlie wants to ask about:</h3>
                 <ul className="space-y-2 mb-6">
                   {generatedQuestions.map((question, index) => (
                     <li key={index} className="text-gray-300 flex items-start gap-2">
@@ -514,11 +484,11 @@ Please engage in a natural conversation about their presentation, starting with 
                 </ul>
                 <div className="bg-blue-900/30 border border-blue-500/30 rounded-lg p-4 mb-4">
                   <p className="text-sm text-blue-200">
-                    <strong>Context Provided:</strong> Your complete presentation transcript has been shared with Tavus AI for personalized coaching and feedback.
+                    <strong>Ready for Q&A:</strong> Your presentation transcript has been shared with Charlie so he can ask relevant questions about your content.
                   </p>
                 </div>
                 <p className="text-sm text-gray-400 text-center">
-                  Starting your coaching session...
+                  Starting conversation with Charlie...
                 </p>
               </div>
             )}
@@ -583,7 +553,7 @@ Please engage in a natural conversation about their presentation, starting with 
               onClick={endPresentation}
               className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-full font-semibold animate-pulse"
             >
-              ⏹️ End Presentation & Get Feedback
+              ⏹️ End Presentation & Chat with Charlie
             </Button>
           )}
           
