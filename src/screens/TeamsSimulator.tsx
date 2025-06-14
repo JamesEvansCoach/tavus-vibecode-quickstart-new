@@ -18,7 +18,9 @@ import {
   Hand,
   Settings,
   Grid3X3,
-  AlertTriangle
+  AlertTriangle,
+  Play,
+  Square
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -511,16 +513,44 @@ export const TeamsSimulator: React.FC = () => {
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
-            <Users className="w-5 h-5" />
-          </Button>
-          <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
-            <MessageSquare className="w-5 h-5" />
-          </Button>
-          <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
-            <Settings className="w-5 h-5" />
-          </Button>
+        
+        {/* Presentation Controls in Header */}
+        <div className="flex items-center gap-4">
+          {!isPresenting ? (
+            <Button
+              onClick={startPresentation}
+              disabled={!speechRecognitionSupported || !token}
+              className={cn(
+                "px-4 py-2 rounded-lg font-semibold flex items-center gap-2",
+                speechRecognitionSupported && token
+                  ? "bg-green-600 hover:bg-green-700 text-white"
+                  : "bg-gray-600 text-gray-400 cursor-not-allowed"
+              )}
+            >
+              <Play className="w-4 h-4" />
+              Start Presentation
+            </Button>
+          ) : (
+            <Button
+              onClick={endPresentation}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold animate-pulse flex items-center gap-2"
+            >
+              <Square className="w-4 h-4" />
+              End & Chat with Charlie
+            </Button>
+          )}
+          
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
+              <Users className="w-5 h-5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
+              <MessageSquare className="w-5 h-5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
+              <Settings className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
       </div>
       
@@ -669,28 +699,6 @@ export const TeamsSimulator: React.FC = () => {
           >
             <MoreHorizontal className="w-5 h-5" />
           </Button>
-          
-          {!isPresenting ? (
-            <Button
-              onClick={startPresentation}
-              disabled={!speechRecognitionSupported || !token}
-              className={cn(
-                "px-6 py-2 rounded-full font-semibold",
-                speechRecognitionSupported && token
-                  ? "bg-green-600 hover:bg-green-700 text-white"
-                  : "bg-gray-600 text-gray-400 cursor-not-allowed"
-              )}
-            >
-              🎤 Start Presentation
-            </Button>
-          ) : (
-            <Button
-              onClick={endPresentation}
-              className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-full font-semibold animate-pulse"
-            >
-              ⏹️ End Presentation & Chat with Charlie
-            </Button>
-          )}
           
           <Button
             onClick={() => setScreenState({ currentScreen: 'intro' })}
