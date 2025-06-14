@@ -336,10 +336,26 @@ export const TeamsSimulator: React.FC = () => {
       return;
     }
     
+    // CRITICAL: Clear any previous presentation context
+    setTranscript('');
+    setShowTavusMode(false);
+    setIsConnectingToTavus(false);
+    
+    // Clear previous settings context to ensure fresh start
+    const cleanSettings = {
+      ...settings,
+      context: '', // Clear any previous context
+    };
+    setSettings(cleanSettings);
+    localStorage.setItem('tavus-settings', JSON.stringify(cleanSettings));
+    
+    console.log('=== STARTING NEW PRESENTATION ===');
+    console.log('Previous context cleared');
+    console.log('Fresh transcript initialized');
+    
     setIsPresenting(true);
     setPresentationStartTime(new Date());
     setIsRecording(true);
-    setTranscript('');
     
     const initialized = initializeSpeechRecognition();
     if (initialized && recognitionRef.current) {
@@ -397,10 +413,12 @@ export const TeamsSimulator: React.FC = () => {
     setShowTavusMode(true);
     setIsConnectingToTavus(true);
     
-    // Update settings with the transcript as conversational context
-    const updatedSettings = {
-      ...settings,
-      // CRITICAL: Send ONLY the presentation transcript as conversational context
+    // CRITICAL: Create completely fresh settings with ONLY the current presentation transcript
+    const freshSettingsForTavus = {
+      name: settings.name || "",
+      language: settings.language || "en",
+      interruptSensitivity: settings.interruptSensitivity || "medium",
+      // ONLY use the current presentation transcript - no previous context
       context: cleanTranscript,
       greeting: "Hi! I just listened to your presentation and I'm curious to learn more about it. I have some questions I'd love to ask you about what you shared.",
       // Use the correct Persona ID as specified
@@ -409,30 +427,36 @@ export const TeamsSimulator: React.FC = () => {
       replica: "rb17cf590e15"
     };
     
-    console.log('=== UPDATING SETTINGS FOR TAVUS ===');
-    console.log('Settings being saved:', {
-      contextLength: updatedSettings.context.length,
-      personaId: updatedSettings.persona,
-      replicaId: updatedSettings.replica,
-      greeting: updatedSettings.greeting
+    console.log('=== CREATING FRESH SETTINGS FOR TAVUS ===');
+    console.log('Current presentation transcript length:', cleanTranscript.length);
+    console.log('Current presentation word count:', wordCount);
+    console.log('Settings context being sent:', {
+      contextLength: freshSettingsForTavus.context.length,
+      contextPreview: freshSettingsForTavus.context.substring(0, 100) + '...',
+      personaId: freshSettingsForTavus.persona,
+      replicaId: freshSettingsForTavus.replica,
+      greeting: freshSettingsForTavus.greeting
     });
     
-    // Update the settings atom with the new context
-    setSettings(updatedSettings);
+    // Update the settings atom with the fresh context
+    setSettings(freshSettingsForTavus);
     
-    // Also save to localStorage for persistence
-    localStorage.setItem('tavus-settings', JSON.stringify(updatedSettings));
+    // Save to localStorage with fresh context only
+    localStorage.setItem('tavus-settings', JSON.stringify(freshSettingsForTavus));
     
     // Verify the settings were saved correctly
     const savedSettings = localStorage.getItem('tavus-settings');
-    console.log('Verified saved settings:', JSON.parse(savedSettings || '{}'));
+    const parsedSavedSettings = JSON.parse(savedSettings || '{}');
+    console.log('Verified saved settings context length:', parsedSavedSettings.context?.length || 0);
+    console.log('Verified saved settings context preview:', parsedSavedSettings.context?.substring(0, 100) + '...' || 'No context');
     
     try {
       console.log('=== CREATING TAVUS CONVERSATION ===');
       console.log('Token available:', !!token);
-      console.log('Transcript ready for API:', cleanTranscript.substring(0, 100) + '...');
+      console.log('Fresh transcript ready for API (length):', cleanTranscript.length);
+      console.log('Fresh transcript preview:', cleanTranscript.substring(0, 200) + '...');
       
-      // Create conversation with the updated context
+      // Create conversation with the fresh context
       const conversation = await createConversation(token);
       setConversation(conversation);
       setIsConnectingToTavus(false);
