@@ -2,7 +2,7 @@ import { AnimatedWrapper } from "@/components/DialogWrapper";
 import React from "react";
 import { useAtom } from "jotai";
 import { screenAtom } from "@/store/screens";
-import { Unlock } from "lucide-react";
+import { Unlock, Presentation } from "lucide-react";
 import AudioButton from "@/components/AudioButton";
 import { apiTokenAtom } from "@/store/tokens";
 import { Input } from "@/components/ui/input";
@@ -12,8 +12,12 @@ export const Intro: React.FC = () => {
   const [, setScreenState] = useAtom(screenAtom);
   const [token, setToken] = useAtom(apiTokenAtom);
 
-  const handleClick = () => {
+  const handleChatDemo = () => {
     setScreenState({ currentScreen: "instructions" });
+  };
+
+  const handlePresentationDemo = () => {
+    setScreenState({ currentScreen: "teamsSimulator" });
   };
 
   return (
@@ -67,25 +71,47 @@ export const Intro: React.FC = () => {
             </p>
           </div>
 
-          <AudioButton 
-            onClick={handleClick}
-            className="relative z-20 flex items-center justify-center gap-2 rounded-3xl border border-[rgba(255,255,255,0.3)] px-4 py-2 text-sm text-white transition-all duration-200 hover:text-primary mt-4 disabled:opacity-50"
-            disabled={!token}
-            style={{
-              height: '44px',
-              transition: 'all 0.2s ease-in-out',
-              backgroundColor: 'rgba(0,0,0,0.3)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = '0 0 15px rgba(34, 197, 254, 0.5)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = 'none';
-            }}
-          >
-            <Unlock className="size-4" />
-            Unlock Demo
-          </AudioButton>
+          <div className="flex flex-col gap-3 mt-4">
+            <AudioButton 
+              onClick={handlePresentationDemo}
+              className="relative z-20 flex items-center justify-center gap-2 rounded-3xl border border-[rgba(255,255,255,0.3)] px-4 py-2 text-sm text-white transition-all duration-200 hover:text-primary disabled:opacity-50"
+              disabled={!token}
+              style={{
+                height: '44px',
+                transition: 'all 0.2s ease-in-out',
+                backgroundColor: 'rgba(0,0,0,0.3)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.boxShadow = '0 0 15px rgba(34, 197, 254, 0.5)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <Presentation className="size-4" />
+              Presentation Demo
+            </AudioButton>
+
+            <AudioButton 
+              onClick={handleChatDemo}
+              className="relative z-20 flex items-center justify-center gap-2 rounded-3xl border border-[rgba(255,255,255,0.3)] px-4 py-2 text-sm text-white transition-all duration-200 hover:text-primary disabled:opacity-50"
+              disabled={!token}
+              style={{
+                height: '44px',
+                transition: 'all 0.2s ease-in-out',
+                backgroundColor: 'rgba(0,0,0,0.3)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.boxShadow = '0 0 15px rgba(34, 197, 254, 0.5)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <Unlock className="size-4" />
+              Chat Demo
+            </AudioButton>
+          </div>
         </div>
       </div>
     </AnimatedWrapper>

@@ -12,7 +12,8 @@ export type Screen =
   | "positiveFeedback"
   | "negativeFeedback"
   | "finalScreen"
-  | "sessionEnded";
+  | "sessionEnded"
+  | "teamsSimulator";
 
 interface ScreenState {
   currentScreen: Screen;
