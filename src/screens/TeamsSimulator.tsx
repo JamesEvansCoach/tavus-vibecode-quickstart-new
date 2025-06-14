@@ -8,17 +8,20 @@ import { settingsAtom } from '@/store/settings';
 import { 
   Mic, 
   MicOff, 
+  Video, 
+  VideoOff, 
+  Monitor, 
+  MoreHorizontal,
   Phone,
-  AlertTriangle,
-  Play,
-  Square,
-  ArrowLeft,
-  Settings
+  Users,
+  MessageSquare,
+  Hand,
+  Settings,
+  Grid3X3,
+  AlertTriangle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { DailyProvider, useDaily, useLocalSessionId, useParticipantIds, useVideoTrack, useAudioTrack, DailyVideo, DailyAudio } from '@daily-co/daily-react';
-import Video from '@/components/Video';
 
 // Speech recognition types
 interface SpeechRecognitionEvent {
@@ -54,73 +57,26 @@ const aiParticipants = [
   { id: 'klaus', name: 'Klaus', position: 'bottom-left', avatar: '/images/avatars/klaus.jpg' },
 ];
 
-// Participant video component with Tavus integration
+// Participant video component
 const ParticipantVideo: React.FC<{
   participant: typeof aiParticipants[0];
   isActive?: boolean;
   isTavusMode?: boolean;
-  isConnecting?: boolean;
-  conversation?: any;
-}> = ({ participant, isActive = false, isTavusMode = false, isConnecting = false, conversation }) => {
-  const daily = useDaily();
-  const remoteParticipantIds = useParticipantIds({ filter: "remote" });
-  const localSessionId = useLocalSessionId();
-  
-  // Join Tavus conversation when it becomes available
-  useEffect(() => {
-    if (isTavusMode && conversation?.conversation_url && participant.id === 'charlie' && daily) {
-      console.log('Joining Tavus conversation in Charlie\'s box:', conversation.conversation_url);
-      daily.join({
-        url: conversation.conversation_url,
-        startVideoOff: false,
-        startAudioOff: true,
-      }).then(() => {
-        daily.setLocalVideo(true);
-        daily.setLocalAudio(false);
-      });
-    }
-  }, [isTavusMode, conversation?.conversation_url, participant.id, daily]);
-
+}> = ({ participant, isActive = false, isTavusMode = false }) => {
   return (
-    <div 
-      className={cn(
-        "relative bg-gray-900 rounded-lg overflow-hidden border-2 transition-all duration-300",
-        isActive ? "border-blue-500 shadow-lg shadow-blue-500/30" : "border-gray-700"
-      )}
-    >
+    <div className={cn(
+      "relative bg-gray-900 rounded-lg overflow-hidden border-2 transition-all duration-300",
+      isActive ? "border-blue-500 shadow-lg shadow-blue-500/30" : "border-gray-700"
+    )}>
       <div className="aspect-video w-full h-full flex items-center justify-center">
         {isTavusMode && participant.id === 'charlie' ? (
-          <div className="w-full h-full relative">
-            {isConnecting ? (
-              <div className="w-full h-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center">
-                <div className="text-white text-center">
-                  <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-2 mx-auto animate-pulse">
-                    <span className="text-2xl">🤖</span>
-                  </div>
-                  <p className="font-medium">Connecting...</p>
-                  <div className="flex justify-center mt-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  </div>
-                </div>
+          <div className="w-full h-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center">
+            <div className="text-white text-center">
+              <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-2 mx-auto">
+                <span className="text-2xl">🤖</span>
               </div>
-            ) : remoteParticipantIds.length > 0 ? (
-              // Show Tavus video when connected
-              <Video
-                id={remoteParticipantIds[0]}
-                className="w-full h-full"
-                tileClassName="!object-cover rounded-lg"
-              />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center">
-                <div className="text-white text-center">
-                  <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-2 mx-auto">
-                    <span className="text-2xl">🤖</span>
-                  </div>
-                  <p className="font-medium">Tavus AI</p>
-                  <p className="text-xs text-white/80 mt-1">Starting conversation...</p>
-                </div>
-              </div>
-            )}
+              <p className="font-medium">Tavus AI</p>
+            </div>
           </div>
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center">
@@ -145,20 +101,6 @@ const ParticipantVideo: React.FC<{
           <MicOff className="w-3 h-3 text-white" />
         </div>
       </div>
-
-      {/* Active indicator for Tavus */}
-      {isTavusMode && participant.id === 'charlie' && !isConnecting && (
-        <div className="absolute top-2 left-2">
-          <div className="bg-green-500 rounded-full p-1 animate-pulse">
-            <div className="w-2 h-2 bg-white rounded-full"></div>
-          </div>
-        </div>
-      )}
-
-      {/* Daily Audio component for Tavus conversation */}
-      {isTavusMode && participant.id === 'charlie' && remoteParticipantIds.length > 0 && (
-        <DailyAudio />
-      )}
     </div>
   );
 };
@@ -168,20 +110,11 @@ const UserVideo: React.FC<{
   videoRef: React.RefObject<HTMLVideoElement>;
   isMuted: boolean;
   isVideoOff: boolean;
-  localSessionId?: string;
-  isTavusMode?: boolean;
-}> = ({ videoRef, isMuted, isVideoOff, localSessionId, isTavusMode }) => {
+}> = ({ videoRef, isMuted, isVideoOff }) => {
   return (
     <div className="relative bg-gray-900 rounded-lg overflow-hidden border-2 border-green-500 shadow-lg shadow-green-500/30">
       <div className="aspect-video w-full h-full">
-        {isTavusMode && localSessionId ? (
-          // Show Daily video when in Tavus mode
-          <Video
-            id={localSessionId}
-            className="w-full h-full"
-            tileClassName="!object-cover"
-          />
-        ) : isVideoOff ? (
+        {isVideoOff ? (
           <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center">
             <div className="text-white text-center">
               <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-2 mx-auto">
@@ -215,7 +148,7 @@ const UserVideo: React.FC<{
         )}
         {isVideoOff && (
           <div className="bg-red-500 rounded-full p-1">
-            <MicOff className="w-3 h-3 text-white" />
+            <VideoOff className="w-3 h-3 text-white" />
           </div>
         )}
       </div>
@@ -223,18 +156,11 @@ const UserVideo: React.FC<{
   );
 };
 
-// Main component wrapped with DailyProvider
-const TeamsSimulatorContent: React.FC = () => {
+export const TeamsSimulator: React.FC = () => {
   const [, setScreenState] = useAtom(screenAtom);
-  const [conversation, setConversation] = useAtom(conversationAtom);
+  const [, setConversation] = useAtom(conversationAtom);
   const [settings, setSettings] = useAtom(settingsAtom);
   const [token] = useAtom(apiTokenAtom);
-  
-  // Daily hooks
-  const daily = useDaily();
-  const localSessionId = useLocalSessionId();
-  const localVideo = useVideoTrack(localSessionId);
-  const localAudio = useAudioTrack(localSessionId);
   
   // Media states
   const [isMuted, setIsMuted] = useState(false);
@@ -251,7 +177,8 @@ const TeamsSimulatorContent: React.FC = () => {
   
   // Post-presentation states
   const [showTavusMode, setShowTavusMode] = useState(false);
-  const [isConnectingToTavus, setIsConnectingToTavus] = useState(false);
+  const [generatedQuestions, setGeneratedQuestions] = useState<string[]>([]);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
   
   // Speech recognition support and error states
   const [speechRecognitionSupported, setSpeechRecognitionSupported] = useState(true);
@@ -392,26 +319,10 @@ const TeamsSimulatorContent: React.FC = () => {
       return;
     }
     
-    // CRITICAL: Clear any previous presentation context
-    setTranscript('');
-    setShowTavusMode(false);
-    setIsConnectingToTavus(false);
-    
-    // Clear previous settings context to ensure fresh start
-    const cleanSettings = {
-      ...settings,
-      context: '', // Clear any previous context
-    };
-    setSettings(cleanSettings);
-    localStorage.setItem('tavus-settings', JSON.stringify(cleanSettings));
-    
-    console.log('=== STARTING NEW PRESENTATION ===');
-    console.log('Previous context cleared');
-    console.log('Fresh transcript initialized');
-    
     setIsPresenting(true);
     setPresentationStartTime(new Date());
     setIsRecording(true);
+    setTranscript('');
     
     const initialized = initializeSpeechRecognition();
     if (initialized && recognitionRef.current) {
@@ -465,16 +376,18 @@ const TeamsSimulatorContent: React.FC = () => {
       return;
     }
     
-    // Show Tavus mode and start connecting
+    // Transition to Tavus mode
     setShowTavusMode(true);
-    setIsConnectingToTavus(true);
+    setIsLoadingQuestions(true);
     
-    // CRITICAL: Create completely fresh settings with ONLY the current presentation transcript
-    const freshSettingsForTavus = {
-      name: settings.name || "",
-      language: settings.language || "en",
-      interruptSensitivity: settings.interruptSensitivity || "medium",
-      // ONLY use the current presentation transcript - no previous context
+    // Generate contextual questions based on transcript
+    const questions = generateQuestionsFromTranscript(cleanTranscript);
+    setGeneratedQuestions(questions);
+    
+    // Update settings with the transcript as conversational context
+    const updatedSettings = {
+      ...settings,
+      // CRITICAL: Send ONLY the presentation transcript as conversational context
       context: cleanTranscript,
       greeting: "Hi! I just listened to your presentation and I'm curious to learn more about it. I have some questions I'd love to ask you about what you shared.",
       // Use the correct Persona ID as specified
@@ -483,66 +396,94 @@ const TeamsSimulatorContent: React.FC = () => {
       replica: "rb17cf590e15"
     };
     
-    console.log('=== CREATING FRESH SETTINGS FOR TAVUS ===');
-    console.log('Current presentation transcript length:', cleanTranscript.length);
-    console.log('Current presentation word count:', wordCount);
-    console.log('Settings context being sent:', {
-      contextLength: freshSettingsForTavus.context.length,
-      contextPreview: freshSettingsForTavus.context.substring(0, 100) + '...',
-      personaId: freshSettingsForTavus.persona,
-      replicaId: freshSettingsForTavus.replica,
-      greeting: freshSettingsForTavus.greeting
+    console.log('=== UPDATING SETTINGS FOR TAVUS ===');
+    console.log('Settings being saved:', {
+      contextLength: updatedSettings.context.length,
+      personaId: updatedSettings.persona,
+      replicaId: updatedSettings.replica,
+      greeting: updatedSettings.greeting
     });
     
-    // Update the settings atom with the fresh context
-    setSettings(freshSettingsForTavus);
+    // Update the settings atom with the new context
+    setSettings(updatedSettings);
     
-    // Save to localStorage with fresh context only
-    localStorage.setItem('tavus-settings', JSON.stringify(freshSettingsForTavus));
+    // Also save to localStorage for persistence
+    localStorage.setItem('tavus-settings', JSON.stringify(updatedSettings));
     
     // Verify the settings were saved correctly
     const savedSettings = localStorage.getItem('tavus-settings');
-    const parsedSavedSettings = JSON.parse(savedSettings || '{}');
-    console.log('Verified saved settings context length:', parsedSavedSettings.context?.length || 0);
-    console.log('Verified saved settings context preview:', parsedSavedSettings.context?.substring(0, 100) + '...' || 'No context');
+    console.log('Verified saved settings:', JSON.parse(savedSettings || '{}'));
     
     try {
       console.log('=== CREATING TAVUS CONVERSATION ===');
       console.log('Token available:', !!token);
-      console.log('Fresh transcript ready for API (length):', cleanTranscript.length);
-      console.log('Fresh transcript preview:', cleanTranscript.substring(0, 200) + '...');
+      console.log('Transcript ready for API:', cleanTranscript.substring(0, 100) + '...');
       
-      // Create conversation with the fresh context
-      const newConversation = await createConversation(token);
-      setConversation(newConversation);
-      setIsConnectingToTavus(false);
+      // Create conversation with the updated context
+      const conversation = await createConversation(token);
+      setConversation(conversation);
+      setIsLoadingQuestions(false);
       
       console.log('=== CONVERSATION CREATED SUCCESSFULLY ===');
-      console.log('Conversation ID:', newConversation.conversation_id);
-      console.log('Conversation URL:', newConversation.conversation_url);
+      console.log('Conversation ID:', conversation.conversation_id);
       
-      // The conversation will now appear in Charlie's box via the ParticipantVideo component
-      
+      // Transition to conversation after a brief delay
+      setTimeout(() => {
+        setScreenState({ currentScreen: 'conversation' });
+      }, 2000);
     } catch (error) {
       console.error('Error creating conversation:', error);
       setErrorMessage('Failed to create conversation with the AI. Please try again or check your internet connection.');
-      setIsConnectingToTavus(false);
+      setIsLoadingQuestions(false);
       setShowTavusMode(false);
     }
   };
   
+  const generateQuestionsFromTranscript = (transcript: string): string[] => {
+    // Generate questions that Charlie would ask about the presentation content
+    const wordCount = transcript.split(' ').filter(word => word.length > 0).length;
+    
+    let questions = [
+      "What inspired you to choose this topic?",
+      "Can you tell me more about your main points?",
+      "What do you hope people will remember most?"
+    ];
+    
+    if (wordCount > 50) {
+      questions = [
+        "I found your presentation really interesting! What's the key takeaway you want people to have?",
+        "Can you elaborate on some of the points you made?",
+        "What questions do you think your audience might have?"
+      ];
+    }
+    
+    if (wordCount > 150) {
+      questions = [
+        "That was a comprehensive presentation! Which part are you most passionate about?",
+        "I'd love to hear more about the details you shared - what's most important?",
+        "What aspects would you like to explore further in our discussion?"
+      ];
+    }
+    
+    return questions;
+  };
+  
   const toggleMute = () => {
-    if (showTavusMode && daily) {
-      // Use Daily's audio controls when in Tavus mode
-      const isMicEnabled = !localAudio.isOff;
-      daily.setLocalAudio(!isMicEnabled);
-      setIsMuted(!isMicEnabled);
-    } else if (stream) {
-      // Use regular stream controls for presentation mode
+    if (stream) {
       const audioTrack = stream.getAudioTracks()[0];
       if (audioTrack) {
         audioTrack.enabled = !audioTrack.enabled;
         setIsMuted(!audioTrack.enabled);
+      }
+    }
+  };
+  
+  const toggleVideo = () => {
+    if (stream) {
+      const videoTrack = stream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        setIsVideoOff(!videoTrack.enabled);
       }
     }
   };
@@ -556,52 +497,13 @@ const TeamsSimulatorContent: React.FC = () => {
   const dismissError = () => {
     setErrorMessage(null);
   };
-
-  const goBackToMenu = () => {
-    // Clean up any ongoing processes
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-    }
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-    }
-    if (daily) {
-      daily.leave();
-      daily.destroy();
-    }
-    
-    // Reset all states
-    setIsPresenting(false);
-    setIsRecording(false);
-    setShowTavusMode(false);
-    setIsConnectingToTavus(false);
-    setTranscript('');
-    setConversation(null);
-    
-    // Go back to intro screen
-    setScreenState({ currentScreen: 'intro' });
-  };
-
-  const goToSettings = () => {
-    setScreenState({ currentScreen: 'settings' });
-  };
   
   return (
     <div className="h-screen bg-gray-900 flex flex-col">
       {/* Teams Header */}
       <div className="bg-gray-800 border-b border-gray-700 px-4 py-2 flex items-center justify-between">
-        {/* Left side - Back button and title */}
         <div className="flex items-center gap-4">
-          <Button
-            onClick={goBackToMenu}
-            variant="ghost"
-            size="icon"
-            className="text-gray-400 hover:text-white"
-            title="Back to Main Menu"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <h1 className="text-white font-semibold">Communicado</h1>
+          <h1 className="text-white font-semibold">AI Presentation Coach</h1>
           {isPresenting && (
             <div className="flex items-center gap-2 text-red-400">
               <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
@@ -609,42 +511,16 @@ const TeamsSimulatorContent: React.FC = () => {
             </div>
           )}
         </div>
-        
-        {/* Right side - Settings and Presentation Controls */}
         <div className="flex items-center gap-2">
-          <Button
-            onClick={goToSettings}
-            variant="ghost"
-            size="icon"
-            className="text-gray-400 hover:text-white"
-            title="Settings"
-          >
+          <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
+            <Users className="w-5 h-5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
+            <MessageSquare className="w-5 h-5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
             <Settings className="w-5 h-5" />
           </Button>
-          
-          {!isPresenting ? (
-            <Button
-              onClick={startPresentation}
-              disabled={!speechRecognitionSupported || !token}
-              className={cn(
-                "px-4 py-2 rounded-lg font-semibold flex items-center gap-2",
-                speechRecognitionSupported && token
-                  ? "bg-green-600 hover:bg-green-700 text-white"
-                  : "bg-gray-600 text-gray-400 cursor-not-allowed"
-              )}
-            >
-              <Play className="w-4 h-4" />
-              Start Presentation
-            </Button>
-          ) : (
-            <Button
-              onClick={endPresentation}
-              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold animate-pulse flex items-center gap-2"
-            >
-              <Square className="w-4 h-4" />
-              Finish Presentation
-            </Button>
-          )}
         </div>
       </div>
       
@@ -674,15 +550,11 @@ const TeamsSimulatorContent: React.FC = () => {
             videoRef={videoRef}
             isMuted={isMuted}
             isVideoOff={isVideoOff}
-            localSessionId={localSessionId}
-            isTavusMode={showTavusMode}
           />
           <ParticipantVideo 
             participant={aiParticipants[0]} 
             isActive={showTavusMode && aiParticipants[0].id === 'charlie'}
             isTavusMode={showTavusMode}
-            isConnecting={isConnectingToTavus}
-            conversation={conversation}
           />
           <ParticipantVideo participant={aiParticipants[1]} />
           
@@ -693,11 +565,65 @@ const TeamsSimulatorContent: React.FC = () => {
           
           {/* Bottom Row */}
           <ParticipantVideo participant={aiParticipants[5]} />
-          {/* Empty spaces */}
-          <div></div>
-          <div></div>
+          <div className="bg-gray-800 rounded-lg border-2 border-gray-700 flex items-center justify-center">
+            <Button
+              variant="ghost"
+              className="text-gray-400 hover:text-white flex flex-col items-center gap-2"
+            >
+              <Grid3X3 className="w-8 h-8" />
+              <span className="text-sm">Add participant</span>
+            </Button>
+          </div>
+          <div className="bg-gray-800 rounded-lg border-2 border-gray-700"></div>
         </div>
       </div>
+      
+      {/* Tavus Questions Overlay */}
+      {showTavusMode && (
+        <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-8 max-w-2xl mx-4">
+            <div className="text-center mb-6">
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center mb-4 mx-auto">
+                <span className="text-3xl">🤖</span>
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-2">Presentation Complete!</h2>
+              <p className="text-gray-300">Charlie is now ready to ask you questions about your presentation</p>
+              <p className="text-sm text-gray-400 mt-2">
+                Duration: {Math.floor(presentationDuration / 60)}:{(presentationDuration % 60).toString().padStart(2, '0')} • 
+                Words: {transcript.split(' ').filter(word => word.length > 0).length}
+              </p>
+            </div>
+            
+            {isLoadingQuestions ? (
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                <p className="text-gray-300">Charlie is reviewing your presentation...</p>
+                <p className="text-sm text-gray-400 mt-2">Preparing questions about your content</p>
+              </div>
+            ) : (
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-4">Charlie wants to ask about:</h3>
+                <ul className="space-y-2 mb-6">
+                  {generatedQuestions.map((question, index) => (
+                    <li key={index} className="text-gray-300 flex items-start gap-2">
+                      <span className="text-blue-400 mt-1">•</span>
+                      {question}
+                    </li>
+                  ))}
+                </ul>
+                <div className="bg-blue-900/30 border border-blue-500/30 rounded-lg p-4 mb-4">
+                  <p className="text-sm text-blue-200">
+                    <strong>Ready for Q&A:</strong> Your presentation transcript has been shared with Charlie (Persona: pcce34deac2a, Replica: rb17cf590e15) so he can ask relevant questions about your content.
+                  </p>
+                </div>
+                <p className="text-sm text-gray-400 text-center">
+                  Starting conversation with Charlie...
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       
       {/* Controls Bar */}
       <div className="bg-gray-800 border-t border-gray-700 px-4 py-3">
@@ -712,11 +638,65 @@ const TeamsSimulatorContent: React.FC = () => {
           </Button>
           
           <Button
-            onClick={goBackToMenu}
+            onClick={toggleVideo}
+            variant={isVideoOff ? "destructive" : "secondary"}
+            size="icon"
+            className="rounded-full"
+          >
+            {isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+          </Button>
+          
+          <Button
+            variant="secondary"
+            size="icon"
+            className="rounded-full"
+          >
+            <Monitor className="w-5 h-5" />
+          </Button>
+          
+          <Button
+            variant="secondary"
+            size="icon"
+            className="rounded-full"
+          >
+            <Hand className="w-5 h-5" />
+          </Button>
+          
+          <Button
+            variant="secondary"
+            size="icon"
+            className="rounded-full"
+          >
+            <MoreHorizontal className="w-5 h-5" />
+          </Button>
+          
+          {!isPresenting ? (
+            <Button
+              onClick={startPresentation}
+              disabled={!speechRecognitionSupported || !token}
+              className={cn(
+                "px-6 py-2 rounded-full font-semibold",
+                speechRecognitionSupported && token
+                  ? "bg-green-600 hover:bg-green-700 text-white"
+                  : "bg-gray-600 text-gray-400 cursor-not-allowed"
+              )}
+            >
+              🎤 Start Presentation
+            </Button>
+          ) : (
+            <Button
+              onClick={endPresentation}
+              className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-full font-semibold animate-pulse"
+            >
+              ⏹️ End Presentation & Chat with Charlie
+            </Button>
+          )}
+          
+          <Button
+            onClick={() => setScreenState({ currentScreen: 'intro' })}
             variant="destructive"
             size="icon"
             className="rounded-full"
-            title="Leave Meeting"
           >
             <Phone className="w-5 h-5 rotate-[135deg]" />
           </Button>
@@ -753,29 +733,7 @@ const TeamsSimulatorContent: React.FC = () => {
             )}
           </div>
         )}
-
-        {/* Tavus Status */}
-        {showTavusMode && (
-          <div className="mt-2 text-center">
-            <p className="text-sm text-blue-400">
-              {isConnectingToTavus ? (
-                <>🤖 Connecting to Tavus AI...</>
-              ) : (
-                <>✅ Tavus AI active in Charlie's video!</>
-              )}
-            </p>
-          </div>
-        )}
       </div>
     </div>
-  );
-};
-
-// Main export with DailyProvider wrapper
-export const TeamsSimulator: React.FC = () => {
-  return (
-    <DailyProvider>
-      <TeamsSimulatorContent />
-    </DailyProvider>
   );
 };
