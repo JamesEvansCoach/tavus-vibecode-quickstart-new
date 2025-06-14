@@ -564,15 +564,9 @@ export const TeamsSimulator: React.FC = () => {
           
           {/* Bottom Row */}
           <ParticipantVideo participant={aiParticipants[5]} />
-          <div className="bg-gray-800 rounded-lg border-2 border-gray-700 flex items-center justify-center">
-            <Button
-              variant="ghost"
-              className="text-gray-400 hover:text-white flex flex-col items-center gap-2"
-            >
-              <span className="text-sm">Add participant</span>
-            </Button>
-          </div>
-          <div className="bg-gray-800 rounded-lg border-2 border-gray-700"></div>
+          {/* Empty spaces */}
+          <div></div>
+          <div></div>
         </div>
       </div>
       
