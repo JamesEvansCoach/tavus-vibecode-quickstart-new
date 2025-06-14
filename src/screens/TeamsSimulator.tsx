@@ -8,16 +8,7 @@ import { settingsAtom } from '@/store/settings';
 import { 
   Mic, 
   MicOff, 
-  Video, 
-  VideoOff, 
-  Monitor, 
-  MoreHorizontal,
   Phone,
-  Users,
-  MessageSquare,
-  Hand,
-  Settings,
-  Grid3X3,
   AlertTriangle,
   Play,
   Square
@@ -150,7 +141,7 @@ const UserVideo: React.FC<{
         )}
         {isVideoOff && (
           <div className="bg-red-500 rounded-full p-1">
-            <VideoOff className="w-3 h-3 text-white" />
+            <MicOff className="w-3 h-3 text-white" />
           </div>
         )}
       </div>
@@ -480,16 +471,6 @@ export const TeamsSimulator: React.FC = () => {
     }
   };
   
-  const toggleVideo = () => {
-    if (stream) {
-      const videoTrack = stream.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.enabled = !videoTrack.enabled;
-        setIsVideoOff(!videoTrack.enabled);
-      }
-    }
-  };
-  
   const formatDuration = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -588,7 +569,6 @@ export const TeamsSimulator: React.FC = () => {
               variant="ghost"
               className="text-gray-400 hover:text-white flex flex-col items-center gap-2"
             >
-              <Grid3X3 className="w-8 h-8" />
               <span className="text-sm">Add participant</span>
             </Button>
           </div>
@@ -653,39 +633,6 @@ export const TeamsSimulator: React.FC = () => {
             className="rounded-full"
           >
             {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-          </Button>
-          
-          <Button
-            onClick={toggleVideo}
-            variant={isVideoOff ? "destructive" : "secondary"}
-            size="icon"
-            className="rounded-full"
-          >
-            {isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
-          </Button>
-          
-          <Button
-            variant="secondary"
-            size="icon"
-            className="rounded-full"
-          >
-            <Monitor className="w-5 h-5" />
-          </Button>
-          
-          <Button
-            variant="secondary"
-            size="icon"
-            className="rounded-full"
-          >
-            <Hand className="w-5 h-5" />
-          </Button>
-          
-          <Button
-            variant="secondary"
-            size="icon"
-            className="rounded-full"
-          >
-            <MoreHorizontal className="w-5 h-5" />
           </Button>
           
           <Button
