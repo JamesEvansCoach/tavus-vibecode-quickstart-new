@@ -284,19 +284,28 @@ export const TeamsSimulator: React.FC = () => {
       recognitionRef.current.stop();
     }
     
+    // Clean and prepare the transcript
+    const cleanTranscript = transcript.trim();
+    
+    console.log('=== PRESENTATION ENDED ===');
+    console.log('Raw transcript:', transcript);
+    console.log('Clean transcript length:', cleanTranscript.length);
+    console.log('Word count:', cleanTranscript.split(' ').filter(word => word.length > 0).length);
+    console.log('Duration:', presentationDuration, 'seconds');
+    
     // Transition to Tavus mode
     setShowTavusMode(true);
     setIsLoadingQuestions(true);
     
     // Generate contextual questions based on transcript
-    const questions = generateQuestionsFromTranscript(transcript);
+    const questions = generateQuestionsFromTranscript(cleanTranscript);
     setGeneratedQuestions(questions);
     
-    // Update settings with the correct Persona ID and Replica ID
+    // Update settings with the transcript as conversational context
     const updatedSettings = {
       ...settings,
-      // Use ONLY the presentation transcript as conversational context
-      context: transcript.trim(),
+      // CRITICAL: Send ONLY the presentation transcript as conversational context
+      context: cleanTranscript,
       greeting: "Hi! I just listened to your presentation and I'm curious to learn more about it. I have some questions I'd love to ask you about what you shared.",
       // Use the correct Persona ID as specified
       persona: "pcce34deac2a",
@@ -304,32 +313,47 @@ export const TeamsSimulator: React.FC = () => {
       replica: "rb17cf590e15"
     };
     
+    console.log('=== UPDATING SETTINGS FOR TAVUS ===');
+    console.log('Settings being saved:', {
+      contextLength: updatedSettings.context.length,
+      personaId: updatedSettings.persona,
+      replicaId: updatedSettings.replica,
+      greeting: updatedSettings.greeting
+    });
+    
     // Update the settings atom with the new context
     setSettings(updatedSettings);
     
     // Also save to localStorage for persistence
     localStorage.setItem('tavus-settings', JSON.stringify(updatedSettings));
     
-    console.log('Presentation transcript being sent to Tavus:', {
-      transcriptLength: transcript.length,
-      wordCount: transcript.split(' ').filter(word => word.length > 0).length,
-      duration: presentationDuration,
-      personaId: 'pcce34deac2a',
-      replicaId: 'rb17cf590e15',
-      context: transcript.trim()
-    });
+    // Verify the settings were saved correctly
+    const savedSettings = localStorage.getItem('tavus-settings');
+    console.log('Verified saved settings:', JSON.parse(savedSettings || '{}'));
     
     try {
-      if (token) {
+      if (token && cleanTranscript.length > 0) {
+        console.log('=== CREATING TAVUS CONVERSATION ===');
+        console.log('Token available:', !!token);
+        console.log('Transcript ready for API:', cleanTranscript.substring(0, 100) + '...');
+        
         // Create conversation with the updated context
         const conversation = await createConversation(token);
         setConversation(conversation);
         setIsLoadingQuestions(false);
         
+        console.log('=== CONVERSATION CREATED SUCCESSFULLY ===');
+        console.log('Conversation ID:', conversation.conversation_id);
+        
         // Transition to conversation after a brief delay
         setTimeout(() => {
           setScreenState({ currentScreen: 'conversation' });
         }, 2000);
+      } else {
+        console.error('Cannot create conversation: missing token or empty transcript');
+        console.log('Token exists:', !!token);
+        console.log('Transcript length:', cleanTranscript.length);
+        setIsLoadingQuestions(false);
       }
     } catch (error) {
       console.error('Error creating conversation:', error);
@@ -489,7 +513,7 @@ export const TeamsSimulator: React.FC = () => {
                 </ul>
                 <div className="bg-blue-900/30 border border-blue-500/30 rounded-lg p-4 mb-4">
                   <p className="text-sm text-blue-200">
-                    <strong>Ready for Q&A:</strong> Your presentation transcript has been shared with Charlie so he can ask relevant questions about your content.
+                    <strong>Ready for Q&A:</strong> Your presentation transcript has been shared with Charlie (Persona: pcce34deac2a, Replica: rb17cf590e15) so he can ask relevant questions about your content.
                   </p>
                 </div>
                 <p className="text-sm text-gray-400 text-center">
