@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { DailyProvider, useDaily, useLocalSessionId, useParticipantIds, useVideoTrack, useAudioTrack, DailyVideo, DailyAudio } from '@daily-co/daily-react';
+import Video from '@/components/Video';
 
 // Speech recognition types
 interface SpeechRecognitionEvent {
@@ -50,13 +52,33 @@ const aiParticipants = [
   { id: 'klaus', name: 'Klaus', position: 'bottom-left', avatar: '/images/avatars/klaus.jpg' },
 ];
 
-// Participant video component
+// Participant video component with Tavus integration
 const ParticipantVideo: React.FC<{
   participant: typeof aiParticipants[0];
   isActive?: boolean;
   isTavusMode?: boolean;
   isConnecting?: boolean;
-}> = ({ participant, isActive = false, isTavusMode = false, isConnecting = false }) => {
+  conversation?: any;
+}> = ({ participant, isActive = false, isTavusMode = false, isConnecting = false, conversation }) => {
+  const daily = useDaily();
+  const remoteParticipantIds = useParticipantIds({ filter: "remote" });
+  const localSessionId = useLocalSessionId();
+  
+  // Join Tavus conversation when it becomes available
+  useEffect(() => {
+    if (isTavusMode && conversation?.conversation_url && participant.id === 'charlie' && daily) {
+      console.log('Joining Tavus conversation in Charlie\'s box:', conversation.conversation_url);
+      daily.join({
+        url: conversation.conversation_url,
+        startVideoOff: false,
+        startAudioOff: true,
+      }).then(() => {
+        daily.setLocalVideo(true);
+        daily.setLocalAudio(false);
+      });
+    }
+  }, [isTavusMode, conversation?.conversation_url, participant.id, daily]);
+
   return (
     <div 
       className={cn(
@@ -66,24 +88,35 @@ const ParticipantVideo: React.FC<{
     >
       <div className="aspect-video w-full h-full flex items-center justify-center">
         {isTavusMode && participant.id === 'charlie' ? (
-          <div className="w-full h-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center relative">
+          <div className="w-full h-full relative">
             {isConnecting ? (
-              <div className="text-white text-center">
-                <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-2 mx-auto animate-pulse">
-                  <span className="text-2xl">🤖</span>
-                </div>
-                <p className="font-medium">Connecting...</p>
-                <div className="flex justify-center mt-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <div className="w-full h-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center">
+                <div className="text-white text-center">
+                  <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-2 mx-auto animate-pulse">
+                    <span className="text-2xl">🤖</span>
+                  </div>
+                  <p className="font-medium">Connecting...</p>
+                  <div className="flex justify-center mt-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  </div>
                 </div>
               </div>
+            ) : remoteParticipantIds.length > 0 ? (
+              // Show Tavus video when connected
+              <Video
+                id={remoteParticipantIds[0]}
+                className="w-full h-full"
+                tileClassName="!object-cover rounded-lg"
+              />
             ) : (
-              <div className="text-white text-center">
-                <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-2 mx-auto">
-                  <span className="text-2xl">🤖</span>
+              <div className="w-full h-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center">
+                <div className="text-white text-center">
+                  <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-2 mx-auto">
+                    <span className="text-2xl">🤖</span>
+                  </div>
+                  <p className="font-medium">Tavus AI</p>
+                  <p className="text-xs text-white/80 mt-1">Starting conversation...</p>
                 </div>
-                <p className="font-medium">Tavus AI</p>
-                <p className="text-xs text-white/80 mt-1">Starting conversation...</p>
               </div>
             )}
           </div>
@@ -119,6 +152,11 @@ const ParticipantVideo: React.FC<{
           </div>
         </div>
       )}
+
+      {/* Daily Audio component for Tavus conversation */}
+      {isTavusMode && participant.id === 'charlie' && remoteParticipantIds.length > 0 && (
+        <DailyAudio />
+      )}
     </div>
   );
 };
@@ -128,11 +166,20 @@ const UserVideo: React.FC<{
   videoRef: React.RefObject<HTMLVideoElement>;
   isMuted: boolean;
   isVideoOff: boolean;
-}> = ({ videoRef, isMuted, isVideoOff }) => {
+  localSessionId?: string;
+  isTavusMode?: boolean;
+}> = ({ videoRef, isMuted, isVideoOff, localSessionId, isTavusMode }) => {
   return (
     <div className="relative bg-gray-900 rounded-lg overflow-hidden border-2 border-green-500 shadow-lg shadow-green-500/30">
       <div className="aspect-video w-full h-full">
-        {isVideoOff ? (
+        {isTavusMode && localSessionId ? (
+          // Show Daily video when in Tavus mode
+          <Video
+            id={localSessionId}
+            className="w-full h-full"
+            tileClassName="!object-cover"
+          />
+        ) : isVideoOff ? (
           <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center">
             <div className="text-white text-center">
               <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-2 mx-auto">
@@ -174,11 +221,18 @@ const UserVideo: React.FC<{
   );
 };
 
-export const TeamsSimulator: React.FC = () => {
+// Main component wrapped with DailyProvider
+const TeamsSimulatorContent: React.FC = () => {
   const [, setScreenState] = useAtom(screenAtom);
-  const [, setConversation] = useAtom(conversationAtom);
+  const [conversation, setConversation] = useAtom(conversationAtom);
   const [settings, setSettings] = useAtom(settingsAtom);
   const [token] = useAtom(apiTokenAtom);
+  
+  // Daily hooks
+  const daily = useDaily();
+  const localSessionId = useLocalSessionId();
+  const localVideo = useVideoTrack(localSessionId);
+  const localAudio = useAudioTrack(localSessionId);
   
   // Media states
   const [isMuted, setIsMuted] = useState(false);
@@ -457,17 +511,16 @@ export const TeamsSimulator: React.FC = () => {
       console.log('Fresh transcript preview:', cleanTranscript.substring(0, 200) + '...');
       
       // Create conversation with the fresh context
-      const conversation = await createConversation(token);
-      setConversation(conversation);
+      const newConversation = await createConversation(token);
+      setConversation(newConversation);
       setIsConnectingToTavus(false);
       
       console.log('=== CONVERSATION CREATED SUCCESSFULLY ===');
-      console.log('Conversation ID:', conversation.conversation_id);
+      console.log('Conversation ID:', newConversation.conversation_id);
+      console.log('Conversation URL:', newConversation.conversation_url);
       
-      // Automatically transition to conversation after a brief delay
-      setTimeout(() => {
-        setScreenState({ currentScreen: 'conversation' });
-      }, 2000);
+      // The conversation will now appear in Charlie's box via the ParticipantVideo component
+      
     } catch (error) {
       console.error('Error creating conversation:', error);
       setErrorMessage('Failed to create conversation with the AI. Please try again or check your internet connection.');
@@ -477,7 +530,13 @@ export const TeamsSimulator: React.FC = () => {
   };
   
   const toggleMute = () => {
-    if (stream) {
+    if (showTavusMode && daily) {
+      // Use Daily's audio controls when in Tavus mode
+      const isMicEnabled = !localAudio.isOff;
+      daily.setLocalAudio(!isMicEnabled);
+      setIsMuted(!isMicEnabled);
+    } else if (stream) {
+      // Use regular stream controls for presentation mode
       const audioTrack = stream.getAudioTracks()[0];
       if (audioTrack) {
         audioTrack.enabled = !audioTrack.enabled;
@@ -564,12 +623,15 @@ export const TeamsSimulator: React.FC = () => {
             videoRef={videoRef}
             isMuted={isMuted}
             isVideoOff={isVideoOff}
+            localSessionId={localSessionId}
+            isTavusMode={showTavusMode}
           />
           <ParticipantVideo 
             participant={aiParticipants[0]} 
             isActive={showTavusMode && aiParticipants[0].id === 'charlie'}
             isTavusMode={showTavusMode}
             isConnecting={isConnectingToTavus}
+            conversation={conversation}
           />
           <ParticipantVideo participant={aiParticipants[1]} />
           
@@ -647,12 +709,21 @@ export const TeamsSimulator: React.FC = () => {
               {isConnectingToTavus ? (
                 <>🤖 Connecting to Tavus AI...</>
               ) : (
-                <>✅ Starting conversation with Tavus AI...</>
+                <>✅ Tavus AI active in Charlie's video!</>
               )}
             </p>
           </div>
         )}
       </div>
     </div>
+  );
+};
+
+// Main export with DailyProvider wrapper
+export const TeamsSimulator: React.FC = () => {
+  return (
+    <DailyProvider>
+      <TeamsSimulatorContent />
+    </DailyProvider>
   );
 };
