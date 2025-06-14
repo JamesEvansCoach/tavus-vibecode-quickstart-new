@@ -8,7 +8,7 @@ import { settingsAtom } from '@/store/settings';
 import { 
   Mic, 
   MicOff, 
-  Video, 
+  Video as VideoIcon, 
   VideoOff, 
   Monitor, 
   MoreHorizontal,
@@ -674,7 +674,7 @@ const TeamsSimulatorContent: React.FC = () => {
             size="icon"
             className="rounded-full"
           >
-            {isVideoOff || !isCameraEnabled ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+            {isVideoOff || !isCameraEnabled ? <VideoOff className="w-5 h-5" /> : <VideoIcon className="w-5 h-5" />}
           </Button>
           
           <Button
