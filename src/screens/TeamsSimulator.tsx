@@ -11,7 +11,9 @@ import {
   Phone,
   AlertTriangle,
   Play,
-  Square
+  Square,
+  ArrowLeft,
+  Settings
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -554,12 +556,51 @@ const TeamsSimulatorContent: React.FC = () => {
   const dismissError = () => {
     setErrorMessage(null);
   };
+
+  const goBackToMenu = () => {
+    // Clean up any ongoing processes
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+    }
+    if (daily) {
+      daily.leave();
+      daily.destroy();
+    }
+    
+    // Reset all states
+    setIsPresenting(false);
+    setIsRecording(false);
+    setShowTavusMode(false);
+    setIsConnectingToTavus(false);
+    setTranscript('');
+    setConversation(null);
+    
+    // Go back to intro screen
+    setScreenState({ currentScreen: 'intro' });
+  };
+
+  const goToSettings = () => {
+    setScreenState({ currentScreen: 'settings' });
+  };
   
   return (
     <div className="h-screen bg-gray-900 flex flex-col">
       {/* Teams Header */}
       <div className="bg-gray-800 border-b border-gray-700 px-4 py-2 flex items-center justify-between">
+        {/* Left side - Back button and title */}
         <div className="flex items-center gap-4">
+          <Button
+            onClick={goBackToMenu}
+            variant="ghost"
+            size="icon"
+            className="text-gray-400 hover:text-white"
+            title="Back to Main Menu"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
           <h1 className="text-white font-semibold">Communicado</h1>
           {isPresenting && (
             <div className="flex items-center gap-2 text-red-400">
@@ -569,8 +610,18 @@ const TeamsSimulatorContent: React.FC = () => {
           )}
         </div>
         
-        {/* Presentation Controls in Header */}
-        <div className="flex items-center gap-4">
+        {/* Right side - Settings and Presentation Controls */}
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={goToSettings}
+            variant="ghost"
+            size="icon"
+            className="text-gray-400 hover:text-white"
+            title="Settings"
+          >
+            <Settings className="w-5 h-5" />
+          </Button>
+          
           {!isPresenting ? (
             <Button
               onClick={startPresentation}
@@ -661,10 +712,11 @@ const TeamsSimulatorContent: React.FC = () => {
           </Button>
           
           <Button
-            onClick={() => setScreenState({ currentScreen: 'intro' })}
+            onClick={goBackToMenu}
             variant="destructive"
             size="icon"
             className="rounded-full"
+            title="Leave Meeting"
           >
             <Phone className="w-5 h-5 rotate-[135deg]" />
           </Button>
