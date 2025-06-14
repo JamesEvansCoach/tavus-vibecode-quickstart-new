@@ -539,18 +539,6 @@ export const TeamsSimulator: React.FC = () => {
               Finish Presentation
             </Button>
           )}
-          
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
-              <Users className="w-5 h-5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
-              <MessageSquare className="w-5 h-5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
-              <Settings className="w-5 h-5" />
-            </Button>
-          </div>
         </div>
       </div>
       
