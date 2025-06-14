@@ -292,12 +292,16 @@ export const TeamsSimulator: React.FC = () => {
     const questions = generateQuestionsFromTranscript(transcript);
     setGeneratedQuestions(questions);
     
-    // Update settings with ONLY the presentation transcript as conversational context
+    // Update settings with the correct Persona ID and Replica ID
     const updatedSettings = {
       ...settings,
-      context: transcript.trim(), // Only the transcript, no additional formatting
+      // Use ONLY the presentation transcript as conversational context
+      context: transcript.trim(),
       greeting: "Hi! I just listened to your presentation and I'm curious to learn more about it. I have some questions I'd love to ask you about what you shared.",
-      persona: "rb17cf590e15" // Use the specified replica ID
+      // Use the correct Persona ID as specified
+      persona: "pcce34deac2a",
+      // Use the correct Replica ID as specified  
+      replica: "rb17cf590e15"
     };
     
     // Update the settings atom with the new context
@@ -310,6 +314,7 @@ export const TeamsSimulator: React.FC = () => {
       transcriptLength: transcript.length,
       wordCount: transcript.split(' ').filter(word => word.length > 0).length,
       duration: presentationDuration,
+      personaId: 'pcce34deac2a',
       replicaId: 'rb17cf590e15',
       context: transcript.trim()
     });
