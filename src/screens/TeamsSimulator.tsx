@@ -17,7 +17,8 @@ import {
   MessageSquare,
   Hand,
   Settings,
-  Grid3X3
+  Grid3X3,
+  AlertTriangle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -179,8 +180,26 @@ export const TeamsSimulator: React.FC = () => {
   const [generatedQuestions, setGeneratedQuestions] = useState<string[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
   
+  // Speech recognition support and error states
+  const [speechRecognitionSupported, setSpeechRecognitionSupported] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  
   // Speech recognition
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  
+  // Check Speech Recognition support on mount
+  useEffect(() => {
+    const checkSpeechRecognitionSupport = () => {
+      const isSupported = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+      setSpeechRecognitionSupported(isSupported);
+      
+      if (!isSupported) {
+        setErrorMessage('Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari for the best experience.');
+      }
+    };
+    
+    checkSpeechRecognitionSupport();
+  }, []);
   
   // Timer effect
   useEffect(() => {
@@ -220,59 +239,104 @@ export const TeamsSimulator: React.FC = () => {
       }
     } catch (error) {
       console.error('Error accessing media devices:', error);
+      setErrorMessage('Unable to access camera and microphone. Please allow permissions and refresh the page.');
     }
   };
   
   const initializeSpeechRecognition = () => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      console.error('Speech recognition not supported');
-      return;
+    if (!speechRecognitionSupported) {
+      setErrorMessage('Speech recognition is not supported in your browser.');
+      return false;
     }
     
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = 'en-US';
-    
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let finalTranscript = '';
+    try {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
       
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const result = event.results[i];
-        if (result.isFinal) {
-          finalTranscript += result[0].transcript + ' ';
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+      
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
+        let finalTranscript = '';
+        
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const result = event.results[i];
+          if (result.isFinal) {
+            finalTranscript += result[0].transcript + ' ';
+          }
         }
-      }
+        
+        if (finalTranscript) {
+          setTranscript(prev => prev + finalTranscript);
+        }
+      };
       
-      if (finalTranscript) {
-        setTranscript(prev => prev + finalTranscript);
-      }
-    };
-    
-    recognition.onerror = (event) => {
-      console.error('Speech recognition error:', event.error);
-    };
-    
-    recognition.onend = () => {
-      if (isRecording) {
-        recognition.start(); // Restart if still recording
-      }
-    };
-    
-    recognitionRef.current = recognition;
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        if (event.error === 'not-allowed') {
+          setErrorMessage('Microphone access denied. Please allow microphone permissions and try again.');
+        } else if (event.error === 'no-speech') {
+          setErrorMessage('No speech detected. Please speak clearly into your microphone.');
+        } else {
+          setErrorMessage(`Speech recognition error: ${event.error}. Please try again.`);
+        }
+      };
+      
+      recognition.onend = () => {
+        if (isRecording) {
+          try {
+            recognition.start(); // Restart if still recording
+          } catch (error) {
+            console.error('Error restarting speech recognition:', error);
+            setErrorMessage('Speech recognition stopped unexpectedly. Please try again.');
+          }
+        }
+      };
+      
+      recognitionRef.current = recognition;
+      return true;
+    } catch (error) {
+      console.error('Error initializing speech recognition:', error);
+      setErrorMessage('Failed to initialize speech recognition. Please refresh the page and try again.');
+      return false;
+    }
   };
   
   const startPresentation = () => {
+    // Clear any previous error messages
+    setErrorMessage(null);
+    
+    // Check if API token is available
+    if (!token) {
+      setErrorMessage('API token is missing. Please check your settings and ensure you have a valid token.');
+      return;
+    }
+    
+    // Check speech recognition support
+    if (!speechRecognitionSupported) {
+      setErrorMessage('Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.');
+      return;
+    }
+    
     setIsPresenting(true);
     setPresentationStartTime(new Date());
     setIsRecording(true);
     setTranscript('');
     
-    initializeSpeechRecognition();
-    if (recognitionRef.current) {
-      recognitionRef.current.start();
+    const initialized = initializeSpeechRecognition();
+    if (initialized && recognitionRef.current) {
+      try {
+        recognitionRef.current.start();
+      } catch (error) {
+        console.error('Error starting speech recognition:', error);
+        setErrorMessage('Failed to start speech recognition. Please check your microphone permissions.');
+        setIsPresenting(false);
+        setIsRecording(false);
+      }
+    } else {
+      setIsPresenting(false);
+      setIsRecording(false);
     }
   };
   
@@ -292,6 +356,25 @@ export const TeamsSimulator: React.FC = () => {
     console.log('Clean transcript length:', cleanTranscript.length);
     console.log('Word count:', cleanTranscript.split(' ').filter(word => word.length > 0).length);
     console.log('Duration:', presentationDuration, 'seconds');
+    
+    // Check for missing token
+    if (!token) {
+      setErrorMessage('Cannot create conversation: API token is missing. Please check your settings and ensure you have a valid token.');
+      return;
+    }
+    
+    // Check for empty transcript
+    if (cleanTranscript.length === 0) {
+      setErrorMessage('Cannot create conversation: No speech was detected during your presentation. Please ensure your microphone is working and try presenting again.');
+      return;
+    }
+    
+    // Check for very short transcript (likely insufficient content)
+    const wordCount = cleanTranscript.split(' ').filter(word => word.length > 0).length;
+    if (wordCount < 5) {
+      setErrorMessage(`Cannot create conversation: Only ${wordCount} words were detected. Please speak more during your presentation to provide enough content for the AI to discuss.`);
+      return;
+    }
     
     // Transition to Tavus mode
     setShowTavusMode(true);
@@ -332,32 +415,27 @@ export const TeamsSimulator: React.FC = () => {
     console.log('Verified saved settings:', JSON.parse(savedSettings || '{}'));
     
     try {
-      if (token && cleanTranscript.length > 0) {
-        console.log('=== CREATING TAVUS CONVERSATION ===');
-        console.log('Token available:', !!token);
-        console.log('Transcript ready for API:', cleanTranscript.substring(0, 100) + '...');
-        
-        // Create conversation with the updated context
-        const conversation = await createConversation(token);
-        setConversation(conversation);
-        setIsLoadingQuestions(false);
-        
-        console.log('=== CONVERSATION CREATED SUCCESSFULLY ===');
-        console.log('Conversation ID:', conversation.conversation_id);
-        
-        // Transition to conversation after a brief delay
-        setTimeout(() => {
-          setScreenState({ currentScreen: 'conversation' });
-        }, 2000);
-      } else {
-        console.error('Cannot create conversation: missing token or empty transcript');
-        console.log('Token exists:', !!token);
-        console.log('Transcript length:', cleanTranscript.length);
-        setIsLoadingQuestions(false);
-      }
+      console.log('=== CREATING TAVUS CONVERSATION ===');
+      console.log('Token available:', !!token);
+      console.log('Transcript ready for API:', cleanTranscript.substring(0, 100) + '...');
+      
+      // Create conversation with the updated context
+      const conversation = await createConversation(token);
+      setConversation(conversation);
+      setIsLoadingQuestions(false);
+      
+      console.log('=== CONVERSATION CREATED SUCCESSFULLY ===');
+      console.log('Conversation ID:', conversation.conversation_id);
+      
+      // Transition to conversation after a brief delay
+      setTimeout(() => {
+        setScreenState({ currentScreen: 'conversation' });
+      }, 2000);
     } catch (error) {
       console.error('Error creating conversation:', error);
+      setErrorMessage('Failed to create conversation with the AI. Please try again or check your internet connection.');
       setIsLoadingQuestions(false);
+      setShowTavusMode(false);
     }
   };
   
@@ -416,6 +494,10 @@ export const TeamsSimulator: React.FC = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
   
+  const dismissError = () => {
+    setErrorMessage(null);
+  };
+  
   return (
     <div className="h-screen bg-gray-900 flex flex-col">
       {/* Teams Header */}
@@ -441,6 +523,24 @@ export const TeamsSimulator: React.FC = () => {
           </Button>
         </div>
       </div>
+      
+      {/* Error Message Banner */}
+      {errorMessage && (
+        <div className="bg-red-600 text-white px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5" />
+            <span className="text-sm">{errorMessage}</span>
+          </div>
+          <Button
+            onClick={dismissError}
+            variant="ghost"
+            size="sm"
+            className="text-white hover:bg-red-700"
+          >
+            ✕
+          </Button>
+        </div>
+      )}
       
       {/* Video Grid */}
       <div className="flex-1 p-4">
@@ -573,7 +673,13 @@ export const TeamsSimulator: React.FC = () => {
           {!isPresenting ? (
             <Button
               onClick={startPresentation}
-              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-full font-semibold"
+              disabled={!speechRecognitionSupported || !token}
+              className={cn(
+                "px-6 py-2 rounded-full font-semibold",
+                speechRecognitionSupported && token
+                  ? "bg-green-600 hover:bg-green-700 text-white"
+                  : "bg-gray-600 text-gray-400 cursor-not-allowed"
+              )}
             >
               🎤 Start Presentation
             </Button>
@@ -595,6 +701,25 @@ export const TeamsSimulator: React.FC = () => {
             <Phone className="w-5 h-5 rotate-[135deg]" />
           </Button>
         </div>
+        
+        {/* Status Messages */}
+        {!speechRecognitionSupported && (
+          <div className="mt-2 text-center">
+            <p className="text-sm text-red-400 flex items-center justify-center gap-2">
+              <AlertTriangle className="w-4 h-4" />
+              Speech recognition not supported. Please use Chrome, Edge, or Safari.
+            </p>
+          </div>
+        )}
+        
+        {!token && speechRecognitionSupported && (
+          <div className="mt-2 text-center">
+            <p className="text-sm text-yellow-400 flex items-center justify-center gap-2">
+              <AlertTriangle className="w-4 h-4" />
+              API token required. Please check your settings.
+            </p>
+          </div>
+        )}
         
         {isRecording && (
           <div className="mt-2 text-center">
